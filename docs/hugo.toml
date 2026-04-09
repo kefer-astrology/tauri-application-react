@@ -1,0 +1,13 @@
+baseURL = "/"
+title = "Kefer docs"
+languageCode = "en-us"
+disableKinds = ["taxonomy", "term", "rss", "sitemap"]
+staticDir = ["static", "../static"]
+
+[params]
+  description = "Project documentation, published frontend builds, and LLM handoff context for the Kefer astrology monorepo."
+
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true

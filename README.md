@@ -4,14 +4,14 @@ Astrology desktop app: **Tauri 2**, **React** (Vite, Radix/shadcn-style UI), and
 
 ## Documentation
 
-Project docs are in **[`docs/README.md`](docs/README.md)** (index and reading order). Start there for architecture, React/Tauri wiring, UI conventions, Python package notes, and integration examples.
+Project docs live in **[`docs/`](docs/)** as a Hugo site source. The main entrypoints are **[`docs/content/_index.md`](docs/content/_index.md)** for the site landing page, **[`docs/content/docs/_index.md`](docs/content/docs/_index.md)** for the documentation index, and **[`docs/content/llm/_index.md`](docs/content/llm/_index.md)** for LLM continuation notes.
 
 | Guide                                       | Topic                                                                     |
 | ------------------------------------------- | ------------------------------------------------------------------------- |
-| [FRONTEND_REACT.md](docs/FRONTEND_REACT.md) | Commands, `apps/web-react/` layout, Tauri bridge, i18n, assets            |
-| [UI_CONVENTIONS.md](docs/UI_CONVENTIONS.md) | Themes, sidebar, i18n workflow (`translations.csv` → `npm run i18n:sync`) |
-| [ARCHITECTURE.md](docs/ARCHITECTURE.md)     | Workspace layout, storage, Rust ↔ Python flow                             |
-| [PYTHON_PACKAGE.md](docs/PYTHON_PACKAGE.md) | Python module and CLI used by the app                                     |
+| [frontend-react](docs/content/docs/frontend-react.md) | Commands, `apps/web-react/` layout, Tauri bridge, i18n, assets            |
+| [ui-conventions](docs/content/docs/ui-conventions.md) | Themes, sidebar, i18n workflow (`translations.csv` → `npm run i18n:sync`) |
+| [architecture](docs/content/docs/architecture.md)     | Workspace layout, storage, Rust ↔ Python flow                             |
+| [python-package](docs/content/docs/python-package.md) | Python module and CLI used by the app                                     |
 
 ## Stack
 
@@ -26,7 +26,7 @@ Project docs are in **[`docs/README.md`](docs/README.md)** (index and reading or
 
 - **Node.js** (current LTS is fine; align with your team’s version policy).
 - **Rust** toolchain for `cargo tauri dev` / `cargo tauri build` — [Install Rust](https://www.rust-lang.org/tools/install).
-- **Python sidecar**: the desktop build expects a binary at **`src-tauri/binaries/kefer-backend`** (see `src-tauri/tauri.conf.json` `bundle.resources`). If it is missing, restore or rebuild it before running the full app; details are in [FRONTEND_REACT.md](docs/FRONTEND_REACT.md) and [PYTHON_PACKAGE.md](docs/PYTHON_PACKAGE.md).
+- **Python sidecar**: the desktop build expects a binary at **`src-tauri/binaries/kefer-backend`** (see `src-tauri/tauri.conf.json` `bundle.resources`). If it is missing, restore or rebuild it before running the full app; details are in [frontend-react](docs/content/docs/frontend-react.md) and [python-package](docs/content/docs/python-package.md).
 
 On **Windows**, install **MSVC** (“Desktop development with C++”) before Rust/Node if you build natively. On **Linux**, follow [Tauri’s Linux dependencies](https://tauri.app/start/prerequisites/) for your distro.
 
@@ -47,6 +47,9 @@ npm run build            # Frontend → apps/web-react/dist/
 npm run tauri build      # Full app bundle
 npm run check            # TypeScript (app + Vite config)
 npm run lint             # Prettier + ESLint
+npm run docs:prepare     # Build app frontends and stage them into the Hugo site
+npm run docs:dev         # Hugo dev server for docs/
+npm run docs:build       # Production Hugo build → dist-docs/
 npm run i18n:sync        # Regenerate apps/web-react/src/locales/*.json from translations.csv
 ```
 

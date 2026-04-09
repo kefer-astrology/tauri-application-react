@@ -4,8 +4,10 @@ import path from 'path';
 import { defineConfig } from 'vite';
 
 const host = process.env.TAURI_DEV_HOST;
+const publicBase = process.env.VITE_PUBLIC_BASE || '/';
 
 export default defineConfig({
+	base: publicBase,
 	// Shared public assets for all frontends (glyphs, favicon, …) — repo root `static/`
 	publicDir: path.resolve(__dirname, '../../static'),
 	plugins: [react(), tailwindcss()],

@@ -10,8 +10,13 @@
 	"scripts": {
 		"dev": "npm run dev -w web-react",
 		"build": "npm run build -w web-react",
+		"build:frontends": "npm run build --workspaces --if-present",
+		"build:frontends:docs": "VITE_PUBLIC_BASE=./ npm run build --workspaces --if-present",
 		"preview": "npm run preview -w web-react",
 		"check": "npm run check -w web-react",
+		"docs:prepare": "npm run build:frontends:docs && node scripts/prepare-docs.mjs",
+		"docs:dev": "npm run docs:prepare && hugo server --source docs",
+		"docs:build": "npm run docs:prepare && hugo --source docs --destination ../dist-docs --minify",
 		"i18n:sync": "node scripts/csv-to-locales.mjs",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",

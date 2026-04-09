@@ -7,6 +7,7 @@ pnpm-debug.log*
 lerna-debug.log*
 node_modules
 dist
+dist-docs
 dist-ssr
 *.local
 .DS_Store
@@ -38,3 +39,11 @@ env/
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
+
+# Tauri sidecar build artifacts
+/src-tauri/binaries/kefer-backend
+
+# Hugo docs build/generated artifacts
+docs/resources/
+docs/static/apps/
+docs/data/generated/
