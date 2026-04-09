@@ -16,6 +16,7 @@ import { getAppFormFieldTheme } from './form-field-theme';
 import { HoroscopeContextTabs } from './horoscope-context-tabs';
 import { Theme } from './astrology-sidebar';
 import { useWorkspaceCharts } from '../workspace-charts-context';
+import { HoroscopeWheel_COPIED_FROM_HOROSKOP } from './horoscope-wheel';
 
 interface HoroscopeDashboardProps {
 	theme: Theme;
@@ -29,21 +30,6 @@ interface PlanetPosition {
 	signIcon: string;
 	minutes: number;
 }
-
-const zodiacSigns = [
-	{ name: 'Aries', icon: '♈', angle: 0 },
-	{ name: 'Taurus', icon: '♉', angle: 30 },
-	{ name: 'Gemini', icon: '♊', angle: 60 },
-	{ name: 'Cancer', icon: '♋', angle: 90 },
-	{ name: 'Leo', icon: '♌', angle: 120 },
-	{ name: 'Virgo', icon: '♍', angle: 150 },
-	{ name: 'Libra', icon: '♎', angle: 180 },
-	{ name: 'Scorpio', icon: '♏', angle: 210 },
-	{ name: 'Sagittarius', icon: '♐', angle: 240 },
-	{ name: 'Capricorn', icon: '♑', angle: 270 },
-	{ name: 'Aquarius', icon: '♒', angle: 300 },
-	{ name: 'Pisces', icon: '♓', angle: 330 }
-];
 
 const mockPositions: PlanetPosition[] = [
 	{ name: 'Sun', icon: '☉', degree: 9, sign: 'Sagittarius', signIcon: '♐', minutes: 47 },
@@ -98,11 +84,14 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 	const mutedColor = ft.muted;
 	const hoverBg = isDark ? 'hover:bg-white/5' : 'hover:bg-gray-50';
 	const controlRow = cn(
-		'flex items-center gap-2 rounded-lg border px-3 py-2',
+		'flex items-center gap-2 rounded-xl border px-3 py-2',
 		borderColor,
 		isDark ? 'bg-white/5' : 'bg-gray-50'
 	);
-	const nativeSelect = cn(ft.inputCompact, 'h-9 w-full flex-1 border text-sm');
+	const nativeSelect = cn(
+		ft.inputCompact,
+		'h-9 w-full min-w-0 flex-1 text-sm rounded-xl [color-scheme:inherit]'
+	);
 
 	const getMaxAmount = () => {
 		if (timeUnit === 'sec' || timeUnit === 'min' || timeUnit === 'yr') return 10;
@@ -156,13 +145,19 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								</div>
 
 								<div className="flex flex-wrap gap-2 pt-2">
-									<span className="rounded-md bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
+									<span className="rounded-lg bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
 										{t('demo_tag_family')}
 									</span>
-									<span className="rounded-md bg-purple-100 px-2 py-1 text-xs font-medium text-purple-700 dark:bg-purple-950/50 dark:text-purple-200">
+									<span
+										className={
+											isDark
+												? 'rounded-lg bg-purple-950/50 px-2 py-1 text-xs font-medium text-purple-200'
+												: 'rounded-lg bg-neutral-900 px-2 py-1 text-xs font-medium text-white'
+										}
+									>
 										{t('demo_tag_astrologer')}
 									</span>
-									<span className="rounded-md bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-950/50 dark:text-green-200">
+									<span className="rounded-lg bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-950/50 dark:text-green-200">
 										{t('demo_tag_writer')}
 									</span>
 								</div>
@@ -276,7 +271,7 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 
 				{/* Center Column - Flexible */}
 				<div className="flex items-center justify-center">
-					<HoroscopeWheel theme={theme} />
+					<HoroscopeWheel_COPIED_FROM_HOROSKOP theme={theme} />
 				</div>
 
 				{/* Spacer - centers right column */}
@@ -413,185 +408,5 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 				</div>
 			)}
 		</div>
-	);
-}
-
-function HoroscopeWheel({ theme }: { theme: Theme }) {
-	const isDark = theme === 'midnight' || theme === 'twilight';
-	const wheelSize = 800;
-	const center = wheelSize / 2;
-	const outerRadius = 320;
-	const innerRadius = 270;
-	const innerCenterRing = 184;
-	const innerCenterCore = 152;
-
-	// Zodiac signs with their exact positions and colors matching image
-	const zodiacWithColors = [
-		{ ...zodiacSigns[0], color: '#ef4444' }, // Aries - red
-		{ ...zodiacSigns[1], color: '#000000' }, // Taurus - black
-		{ ...zodiacSigns[2], color: '#22c55e' }, // Gemini - green
-		{ ...zodiacSigns[3], color: '#3b82f6' }, // Cancer - blue
-		{ ...zodiacSigns[4], color: '#ef4444' }, // Leo - red
-		{ ...zodiacSigns[5], color: '#000000' }, // Virgo - black
-		{ ...zodiacSigns[6], color: '#22c55e' }, // Libra - green
-		{ ...zodiacSigns[7], color: '#3b82f6' }, // Scorpio - blue
-		{ ...zodiacSigns[8], color: '#ef4444' }, // Sagittarius - red
-		{ ...zodiacSigns[9], color: '#000000' }, // Capricorn - black
-		{ ...zodiacSigns[10], color: '#22c55e' }, // Aquarius - green
-		{ ...zodiacSigns[11], color: '#3b82f6' } // Pisces - blue
-	];
-
-	return (
-		<svg
-			width="100%"
-			height="100%"
-			viewBox={`0 0 ${wheelSize} ${wheelSize}`}
-			className="max-h-full max-w-full"
-			preserveAspectRatio="xMidYMid meet"
-		>
-			{/* White background */}
-			<circle
-				cx={center}
-				cy={center}
-				r={outerRadius + 60}
-				fill={isDark ? 'rgba(255,255,255,0.03)' : '#ffffff'}
-			/>
-
-			{/* Outer Circle */}
-			<circle
-				cx={center}
-				cy={center}
-				r={outerRadius}
-				fill="none"
-				stroke={isDark ? 'rgba(255,255,255,0.5)' : '#000000'}
-				strokeWidth="1.5"
-			/>
-
-			{/* Inner Circle (main ring inner boundary) */}
-			<circle
-				cx={center}
-				cy={center}
-				r={innerRadius}
-				fill="none"
-				stroke={isDark ? 'rgba(255,255,255,0.5)' : '#000000'}
-				strokeWidth="1.5"
-			/>
-
-			{/* House Cusps - 12 radial lines dividing the wheel */}
-			{zodiacSigns.map((sign, idx) => {
-				const angle = sign.angle - 90; // Start from top (0° = Aries at 9 o'clock)
-				const rad = (angle * Math.PI) / 180;
-
-				const x1 = center + innerRadius * Math.cos(rad);
-				const y1 = center + innerRadius * Math.sin(rad);
-				const x2 = center + outerRadius * Math.cos(rad);
-				const y2 = center + outerRadius * Math.sin(rad);
-
-				return (
-					<line
-						key={`cusp-${idx}`}
-						x1={x1}
-						y1={y1}
-						x2={x2}
-						y2={y2}
-						stroke={isDark ? 'rgba(255,255,255,0.4)' : '#000000'}
-						strokeWidth="1.5"
-					/>
-				);
-			})}
-
-			{/* Degree ticks on INNER circumference */}
-			<g>
-				{Array.from({ length: 360 }, (_, i) => {
-					const angle = i - 90;
-					const rad = (angle * Math.PI) / 180;
-
-					const is10Degree = i % 10 === 0;
-					const is5Degree = i % 5 === 0;
-
-					let tickLength;
-					let tickWidth;
-
-					if (is10Degree) {
-						tickLength = 20;
-						tickWidth = 1.5;
-					} else if (is5Degree) {
-						tickLength = 12;
-						tickWidth = 1.2;
-					} else {
-						tickLength = 8;
-						tickWidth = 0.5;
-					}
-
-					const x1 = center + innerRadius * Math.cos(rad);
-					const y1 = center + innerRadius * Math.sin(rad);
-					const x2 = center + (innerRadius + tickLength) * Math.cos(rad);
-					const y2 = center + (innerRadius + tickLength) * Math.sin(rad);
-
-					return (
-						<line
-							key={`inner-tick-${i}`}
-							x1={x1}
-							y1={y1}
-							x2={x2}
-							y2={y2}
-							stroke={isDark ? 'rgba(255,255,255,0.4)' : '#000000'}
-							strokeWidth={tickWidth}
-						/>
-					);
-				})}
-			</g>
-
-			{/* Zodiac Signs - INSIDE the main ring */}
-			{zodiacWithColors.map((sign) => {
-				const angle = sign.angle - 90 + 15; // Center of each 30° segment
-				const rad = (angle * Math.PI) / 180;
-
-				const zodiacRadius = (innerRadius + outerRadius) / 2;
-				const x = center + zodiacRadius * Math.cos(rad);
-				const y = center + zodiacRadius * Math.sin(rad);
-
-				let finalColor = sign.color;
-				if (isDark && sign.color !== '#000000') {
-					finalColor = sign.color + 'dd';
-				} else if (isDark && sign.color === '#000000') {
-					finalColor = '#ffffff';
-				}
-
-				return (
-					<text
-						key={sign.name}
-						x={x}
-						y={y}
-						textAnchor="middle"
-						dominantBaseline="middle"
-						fontSize="20"
-						fontWeight="500"
-						fill={finalColor}
-					>
-						{sign.icon}
-					</text>
-				);
-			})}
-
-			{/* Inner nested circles (empty center) */}
-			<circle
-				cx={center}
-				cy={center}
-				r={innerCenterRing}
-				fill="none"
-				stroke={isDark ? 'rgba(255,255,255,0.4)' : '#000000'}
-				strokeWidth="1.5"
-			/>
-
-			<circle
-				cx={center}
-				cy={center}
-				r={innerCenterCore}
-				fill="none"
-				stroke={isDark ? 'rgba(255,255,255,0.4)' : '#000000'}
-				strokeWidth="1.5"
-			/>
-		</svg>
 	);
 }

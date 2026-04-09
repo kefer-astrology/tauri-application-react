@@ -2,11 +2,16 @@ import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
+import { AppMainContentContainer, AppMainContentRoot } from './components/app-main-content';
 import { AstrologySidebar, Theme } from './components/astrology-sidebar';
 import { Card, CardContent } from './components/ui/card';
 import { cn } from './components/ui/utils';
 import { getAppFormFieldTheme } from './components/form-field-theme';
 import { NewHoroscope } from './components/new-horoscope';
+import {
+	type SettingsSectionId,
+	SettingsSecondarySidebar
+} from './components/settings-secondary-sidebar';
 import { TransitsSecondarySidebar, TransitSection } from './components/transits-secondary-sidebar';
 import { TransitsContent } from './components/transits-content';
 import { Aspectarium } from './components/aspectarium';
@@ -68,6 +73,7 @@ export default function App() {
 	const formTheme = useMemo(() => getAppFormFieldTheme(theme), [theme]);
 	const [activeView, setActiveView] = useState<string>('horoskop');
 	const [activeTransitSection, setActiveTransitSection] = useState<TransitSection>('general');
+	const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>('jazyk');
 	const [workspacePath, setWorkspacePath] = useState<string | null>(null);
 	const [charts, setCharts] = useState<AppChart[]>(() => [
 		createBootstrapChart(DEFAULT_WORKSPACE_DEFAULTS)
@@ -188,6 +194,9 @@ export default function App() {
 		if (view === 'tranzity') {
 			setActiveTransitSection('general');
 		}
+		if (view === 'nastaveni') {
+			setActiveSettingsSection('jazyk');
+		}
 	};
 
 	type MainThemeStyle = { bg: string; text: string; style?: CSSProperties };
@@ -244,6 +253,14 @@ export default function App() {
 						/>
 					)}
 
+					{activeView === 'nastaveni' && (
+						<SettingsSecondarySidebar
+							activeSection={activeSettingsSection}
+							onSectionChange={setActiveSettingsSection}
+							theme={theme}
+						/>
+					)}
+
 					{/* Main Content Area */}
 					<main
 						className={`flex-1 ${currentThemeStyle.bg} ${currentThemeStyle.text} overflow-auto transition-colors duration-500`}
@@ -279,11 +296,12 @@ export default function App() {
 						) : activeView === 'tranzity' ? (
 							<TransitsContent section={activeTransitSection} theme={theme} />
 						) : activeView === 'nastaveni' ? (
-							<SettingsView theme={theme} />
+							<SettingsView theme={theme} section={activeSettingsSection} />
 						) : (
-							<div className="flex min-h-full flex-col p-6 md:p-8">
-								<Card className={cn('max-w-xl gap-0 border p-0 shadow-lg', formTheme.settingsCard)}>
-									<CardContent className="space-y-3 p-6">
+							<AppMainContentRoot>
+								<AppMainContentContainer maxWidth="2xl">
+								<Card className={cn('gap-0 border-0 p-0 shadow-none', formTheme.settingsCard)}>
+									<CardContent className="space-y-3 p-6 md:p-8">
 										<h1 className={cn('text-xl font-semibold', formTheme.title)}>
 											{t('placeholder_view_title')}
 										</h1>
@@ -295,7 +313,8 @@ export default function App() {
 										</p>
 									</CardContent>
 								</Card>
-							</div>
+								</AppMainContentContainer>
+							</AppMainContentRoot>
 						)}
 					</main>
 				</div>

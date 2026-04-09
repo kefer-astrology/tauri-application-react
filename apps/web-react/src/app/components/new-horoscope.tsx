@@ -11,6 +11,7 @@ import { Label } from './ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 import { Switch } from './ui/switch';
+import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { cn } from './ui/utils';
 import { getAppFormFieldTheme } from './form-field-theme';
 import type { Theme } from './astrology-sidebar';
@@ -304,8 +305,8 @@ export function NewHoroscope({
 				: undefined;
 
 	return (
-		<div className={cn('min-h-screen px-4 py-6 sm:px-6 lg:px-8', ft.formPageBg)} style={bgStyle}>
-			<div className="mx-auto max-w-2xl">
+		<AppMainContentRoot className={cn(ft.formPageBg)} style={bgStyle}>
+			<AppMainContentContainer maxWidth="2xl">
 				<h1 className={cn('mb-5 text-xl font-semibold', ft.title)}>{t('new_radix_title')}</h1>
 
 				<div className="space-y-4">
@@ -585,7 +586,7 @@ export function NewHoroscope({
 							</Button>
 						</div>
 				</div>
-			</div>
-		</div>
+			</AppMainContentContainer>
+		</AppMainContentRoot>
 	);
 }

@@ -14,9 +14,10 @@ import {
 	SelectTrigger,
 	SelectValue
 } from './ui/select';
+import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { cn } from './ui/utils';
-import { SecondaryNavPanel } from './secondary-nav-panel';
 import { getAppFormFieldTheme } from './form-field-theme';
+import type { SettingsSectionId } from './settings-secondary-sidebar';
 import type { Theme } from './astrology-sidebar';
 import type { AppLanguage } from '@/lib/i18n';
 
@@ -67,14 +68,6 @@ const ASPECT_ROWS = [
 	{ id: 'opposition', labelKey: 'aspect_opposition', defaultOrb: 8 }
 ] as const;
 
-type SettingsSectionId =
-	| 'jazyk'
-	| 'lokace'
-	| 'system_domu'
-	| 'nastaveni_aspektu'
-	| 'vzhled'
-	| 'manual';
-
 const GLYPH_SET_KEY = 'glyph_set';
 
 function readStoredGlyphSet(): (typeof GLYPH_SET_OPTIONS)[number]['id'] {
@@ -87,15 +80,16 @@ function readStoredGlyphSet(): (typeof GLYPH_SET_OPTIONS)[number]['id'] {
 	return 'kerykeion';
 }
 
+export type { SettingsSectionId } from './settings-secondary-sidebar';
+
 interface SettingsViewProps {
 	theme: Theme;
+	section: SettingsSectionId;
 }
 
-export function SettingsView({ theme }: SettingsViewProps) {
+export function SettingsView({ theme, section }: SettingsViewProps) {
 	const { t, i18n } = useTranslation();
 	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
-
-	const [section, setSection] = useState<SettingsSectionId>('jazyk');
 	const [settingsChanged, setSettingsChanged] = useState(false);
 
 	const [defaultLocation, setDefaultLocation] = useState('');
@@ -113,19 +107,6 @@ export function SettingsView({ theme }: SettingsViewProps) {
 	const [presetValue, setPresetValue] = useState<string>('default');
 	const [glyphSetValue, setGlyphSetValue] = useState<(typeof GLYPH_SET_OPTIONS)[number]['id']>(() =>
 		readStoredGlyphSet()
-	);
-
-	const sectionNav = useMemo(
-		() =>
-			[
-				{ id: 'jazyk' as const, label: t('section_jazyk') },
-				{ id: 'lokace' as const, label: t('section_lokace') },
-				{ id: 'system_domu' as const, label: t('section_system_domu') },
-				{ id: 'nastaveni_aspektu' as const, label: t('section_nastaveni_aspektu') },
-				{ id: 'vzhled' as const, label: t('section_vzhled') },
-				{ id: 'manual' as const, label: t('section_manual') }
-			] as const,
-		[t]
 	);
 
 	const onGlyphSetChange = useCallback((value: string) => {
@@ -164,36 +145,34 @@ export function SettingsView({ theme }: SettingsViewProps) {
 	const glyphDescription = GLYPH_SET_OPTIONS.find((s) => s.id === glyphSetValue)?.description;
 
 	return (
-		<div className="flex min-h-full flex-col p-6 md:p-8">
-			<header className="shrink-0">
-				<h1 className={cn('text-xl font-semibold', ft.title)}>{t('app_settings')}</h1>
-			</header>
+		<AppMainContentRoot className="min-h-full">
+			<AppMainContentContainer maxWidth="4xl">
+				<div className="flex min-h-0 w-full min-w-0 flex-col space-y-6">
+					<h1 className={cn('text-2xl font-semibold tracking-tight', ft.title)}>
+						{t('app_settings')}
+					</h1>
 
-			<div className="mt-6 grid min-h-0 flex-1 gap-6 lg:grid-cols-[14rem_minmax(0,1fr)] lg:items-stretch">
-				<SecondaryNavPanel
-					theme={theme}
-					items={sectionNav.map((item) => ({ id: item.id, label: item.label }))}
-					activeId={section}
-					onSelect={(id) => setSection(id as SettingsSectionId)}
-					ariaLabel={t('settings')}
-					className="lg:max-h-[calc(100vh-8rem)] lg:overflow-y-auto"
-				/>
-
-				<Card
-					className={cn(
-						'flex min-h-[min(70vh,520px)] min-w-0 flex-col gap-0 rounded-xl p-0 shadow-none',
-						ft.settingsCard,
-						'border-0 shadow-none'
-					)}
-				>
-					<CardContent className="min-h-0 flex-1 overflow-y-auto px-6 pt-6 pb-2">
+					<Card
+						className={cn(
+							'flex min-h-[min(70vh,520px)] min-w-0 flex-col gap-0 rounded-xl p-0 shadow-none',
+							ft.settingsCard,
+							'border-0 shadow-none'
+						)}
+					>
+					<CardContent className="min-h-0 flex-1 overflow-y-auto p-6 md:p-8">
 						{section === 'jazyk' && (
 							<div className="max-w-xl space-y-4">
 								<div className="flex items-center gap-2">
 									<Languages
 										className={cn(
 											'h-6 w-6 shrink-0',
-											ft.isTwilight ? 'text-white' : ft.isDark ? 'text-blue-400' : 'text-indigo-600'
+											ft.isTwilight
+												? 'text-white'
+												: ft.isDark
+													? 'text-blue-400'
+													: ft.isSunrise
+														? 'text-sky-600'
+														: 'text-neutral-900'
 										)}
 										aria-hidden
 									/>
@@ -421,7 +400,7 @@ export function SettingsView({ theme }: SettingsViewProps) {
 						)}
 					</CardContent>
 
-					<CardFooter className="shrink-0 flex-col gap-2 bg-transparent px-4 py-4 sm:flex-row sm:px-6">
+					<CardFooter className="shrink-0 flex-col gap-2 border-0 bg-transparent px-6 py-4 md:px-8 sm:flex-row">
 						<button type="button" className={ft.footerCancel} onClick={handleCancel}>
 							{t('cancel')}
 						</button>
@@ -435,7 +414,8 @@ export function SettingsView({ theme }: SettingsViewProps) {
 						</button>
 					</CardFooter>
 				</Card>
-			</div>
-		</div>
+				</div>
+			</AppMainContentContainer>
+		</AppMainContentRoot>
 	);
 }

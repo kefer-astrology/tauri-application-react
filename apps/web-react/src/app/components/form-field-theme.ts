@@ -7,19 +7,26 @@ import type { Theme } from './astrology-sidebar';
  * `sunrise` uses sky/cyan surfaces and `bg-sky-500` primary actions to match the sidebar + main shell.
  */
 export function getAppFormFieldTheme(theme: Theme) {
-	const isDark = theme === 'midnight';
+	const isMidnight = theme === 'midnight';
 	const isTwilight = theme === 'twilight';
 	const isSunrise = theme === 'sunrise';
+	/** Legacy: true only for midnight (charts / icons that distinguish blue night). */
+	const isDark = isMidnight;
 
-	const title = isDark || isTwilight ? 'text-white' : isSunrise ? 'text-sky-950' : 'text-gray-900';
-	const label = isDark
+	const title =
+		isMidnight || isTwilight
+			? 'text-white'
+			: isSunrise
+				? 'text-sky-950'
+				: 'text-gray-900';
+	const label = isMidnight
 		? 'text-blue-100'
 		: isTwilight
 			? 'text-white'
 			: isSunrise
 				? 'text-sky-900'
 				: 'text-gray-700';
-	const muted = isDark
+	const muted = isMidnight
 		? 'text-blue-200/80'
 		: isTwilight
 			? 'text-white/80'
@@ -28,7 +35,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 				: 'text-muted-foreground';
 
 	const input = cn(
-		'w-full rounded-lg border px-4 py-2.5 text-base transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none md:text-sm',
+		'w-full rounded-xl border px-4 py-2.5 text-base transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none md:text-sm',
 		isDark
 			? 'border-blue-900/40 bg-blue-950/40 text-slate-100 placeholder:text-slate-600 backdrop-blur-sm shadow-inner'
 			: isTwilight
@@ -39,7 +46,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 	);
 
 	const inputCompact = cn(
-		'h-9 rounded-lg border px-3 py-1 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none',
+		'h-9 rounded-xl border px-3 py-1 text-sm transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none',
 		isDark
 			? 'border-blue-900/40 bg-blue-950/40 text-slate-100 backdrop-blur-sm'
 			: isTwilight
@@ -50,7 +57,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 	);
 
 	const selectTrigger = cn(
-		'flex h-auto min-h-10 w-full items-center justify-between rounded-lg border px-4 py-2.5 text-base transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none md:text-sm [&>svg]:opacity-70',
+		'flex h-auto min-h-10 w-full items-center justify-between rounded-xl border px-4 py-2.5 text-base transition-all focus:border-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none md:text-sm [&>svg]:opacity-70',
 		isDark
 			? 'border-blue-900/40 bg-blue-950/40 text-slate-100 backdrop-blur-sm shadow-inner'
 			: isTwilight
@@ -61,7 +68,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 	);
 
 	const selectContent = cn(
-		'rounded-lg border shadow-lg',
+		'rounded-xl border shadow-lg',
 		isDark
 			? 'border-blue-900/40 bg-blue-950/95 text-slate-100 backdrop-blur-lg'
 			: isTwilight
@@ -79,7 +86,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 				: '';
 
 	const settingsCard = cn(
-		'overflow-hidden border shadow-lg',
+		'overflow-hidden rounded-2xl border shadow-lg',
 		isDark
 			? 'border-blue-900/50 bg-blue-950/50 text-slate-100 backdrop-blur-md'
 			: isTwilight
@@ -98,7 +105,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 				: 'border-gray-200';
 
 	const footerCancel = cn(
-		'flex-1 rounded-lg border px-6 py-2.5 font-medium transition-all focus:ring-2 focus:ring-offset-2 focus:outline-none',
+		'flex-1 rounded-xl border px-6 py-2.5 font-medium transition-all focus:ring-2 focus:ring-offset-2 focus:outline-none',
 		isDark
 			? 'border-blue-900/40 bg-blue-950/40 text-slate-200 hover:bg-blue-900/60 focus:ring-slate-500 backdrop-blur-sm shadow-inner'
 			: isTwilight
@@ -109,23 +116,27 @@ export function getAppFormFieldTheme(theme: Theme) {
 	);
 
 	const footerPrimary = cn(
-		'flex-1 rounded-lg px-6 py-2.5 font-medium text-white shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:opacity-50',
+		'flex-1 rounded-xl px-6 py-2.5 font-medium text-white shadow-sm transition-all focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:opacity-50',
 		isDark || isTwilight
 			? 'bg-indigo-600 hover:bg-indigo-500 focus:ring-indigo-400 shadow-lg shadow-indigo-900/50'
 			: isSunrise
 				? 'bg-sky-500 hover:bg-sky-600 focus:ring-sky-400 shadow-lg shadow-sky-700/25'
-				: 'bg-indigo-600 hover:bg-indigo-700 focus:ring-indigo-500 shadow-lg shadow-indigo-600/30'
+				: 'bg-neutral-900 hover:bg-neutral-800 focus:ring-neutral-600 shadow-lg shadow-black/20'
 	);
 
-	const langBubbleActive =
-		'border-indigo-500 bg-indigo-600 text-white ring-2 ring-indigo-400/50 shadow-sm';
+	/** Noon: neutral/black; twilight & midnight: indigo; sunrise: sky — matches sidebar accents. */
+	const langBubbleActive = isSunrise
+		? 'border-sky-600 bg-sky-500 text-white ring-2 ring-sky-400/45 shadow-sm'
+		: isMidnight || isTwilight
+			? 'border-indigo-500 bg-indigo-600 text-white ring-2 ring-indigo-400/50 shadow-sm'
+			: 'border-neutral-800 bg-neutral-900 text-white ring-2 ring-neutral-600/50 shadow-sm';
 	const langBubbleIdle = isDark
 		? 'border-blue-800/50 bg-blue-950/50 text-slate-200 hover:bg-blue-900/50'
 		: isTwilight
 			? 'border-blue-700/50 bg-blue-900/40 text-white hover:bg-blue-800/50'
 			: isSunrise
 				? 'border-sky-300 bg-white/95 text-sky-900 hover:border-sky-400 hover:bg-sky-50'
-				: 'border-gray-300 bg-white text-gray-900 hover:border-indigo-300 hover:bg-indigo-50';
+				: 'border-gray-300 bg-white text-gray-900 hover:border-gray-400 hover:bg-neutral-50';
 
 	const inputDisabled = cn(
 		'cursor-not-allowed border text-base md:text-sm',
@@ -153,10 +164,10 @@ export function getAppFormFieldTheme(theme: Theme) {
 			? 'bg-indigo-600/90 text-white'
 			: isSunrise
 				? 'bg-sky-100 text-sky-800'
-				: 'bg-blue-50 text-blue-600';
+				: 'bg-neutral-100 text-neutral-900';
 
 	const advancedPanel = cn(
-		'rounded-lg border-0 p-4',
+		'rounded-xl border-0 p-4',
 		isDark
 			? 'bg-blue-950/30 backdrop-blur-sm'
 			: isTwilight
@@ -175,7 +186,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 				: 'text-gray-400';
 
 	const datePicker = cn(
-		'w-80 rounded-lg border-0 p-4 shadow-xl ring-1 ring-black/5 dark:ring-white/10',
+		'w-80 rounded-xl border-0 p-4 shadow-xl ring-1 ring-black/5 dark:ring-white/10',
 		isDark
 			? 'bg-blue-950/95 backdrop-blur-lg'
 			: isTwilight
@@ -214,7 +225,14 @@ export function getAppFormFieldTheme(theme: Theme) {
 			? 'bg-indigo-600/90 text-white hover:bg-indigo-600'
 			: isSunrise
 				? 'bg-sky-500 text-white hover:bg-sky-600'
-				: 'bg-blue-600 text-white hover:bg-blue-700';
+				: 'bg-neutral-900 text-white hover:bg-neutral-800';
+
+	/** Native checkbox accent color (Tailwind `text-*` tints the checkmark). */
+	const checkboxAccent = isMidnight || isTwilight
+		? 'text-indigo-400 focus:ring-indigo-400'
+		: isSunrise
+			? 'text-sky-600 focus:ring-sky-500'
+			: 'text-neutral-900 focus:ring-neutral-600';
 
 	/** Light themes: subtle page tint behind the form. Dark themes use `App` / inline bg instead. */
 	const formPageBg =
@@ -317,6 +335,7 @@ export function getAppFormFieldTheme(theme: Theme) {
 		switchUnchecked,
 		textDisabled,
 		bodyText,
+		checkboxAccent,
 		langBubble: (active: boolean) =>
 			cn(
 				'min-h-12 min-w-[3.25rem] rounded-full border-2 px-5 py-2.5 text-base font-semibold transition-colors',

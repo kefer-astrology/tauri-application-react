@@ -15,10 +15,9 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
 
 	return (
-		<div className="h-full min-h-0 w-full overflow-y-auto">
-			<div
-				className={cn('mx-auto w-full max-w-6xl rounded-xl p-8', ft.settingsCard, 'border-0 shadow-none')}
-			>
+		<div
+			className={cn('w-full rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}
+		>
 				<div className="mb-8">
 					<h1 className={cn('mb-2 text-2xl font-semibold', ft.title)}>{t(titleKey)}</h1>
 					<p className={cn('text-sm', ft.muted)}>{t(subtitleKey)}</p>
@@ -30,7 +29,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_luminaries')}
@@ -40,14 +39,14 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>☉ {t('planet_sun')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>☽ {t('planet_moon')}</span>
 								</label>
@@ -58,7 +57,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_lunar_nodes')}
@@ -68,14 +67,14 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>{t('transits_node_mean')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>{t('transits_node_true')}</span>
 								</label>
@@ -88,7 +87,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_personal_planets')}
@@ -98,21 +97,21 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>☿ {t('planet_mercury')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♀ {t('planet_venus')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♂ {t('planet_mars')}</span>
 								</label>
@@ -123,7 +122,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_lunar_apsides')}
@@ -133,7 +132,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>
 										{t('transits_black_moon_mean')}
@@ -142,7 +141,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>
 										{t('transits_black_moon_natural')}
@@ -151,7 +150,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>{t('transits_black_moon_osc')}</span>
 								</label>
@@ -164,7 +163,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_social')}
@@ -174,14 +173,14 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♃ {t('planet_jupiter')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♄ {t('planet_saturn')}</span>
 								</label>
@@ -192,7 +191,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_tno')}
@@ -211,7 +210,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 									<label key={label} className="flex h-5 cursor-pointer items-center space-x-2">
 										<input
 											type="checkbox"
-											className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+											className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 										/>
 										<span className={cn('text-sm', ft.bodyText)}>{label}</span>
 									</label>
@@ -225,7 +224,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_transpersonal')}
@@ -235,21 +234,21 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♅ {t('planet_uranus')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♆ {t('planet_neptune')}</span>
 								</label>
 								<label className="flex h-5 cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>♇ {t('planet_pluto')}</span>
 								</label>
@@ -260,7 +259,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 							<label className="mb-3 flex h-5 cursor-pointer items-center space-x-2">
 								<input
 									type="checkbox"
-									className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+									className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 								/>
 								<span className={cn('text-sm font-semibold', ft.label)}>
 									{t('transits_group_asteroids')}
@@ -272,7 +271,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 										<label key={label} className="flex h-5 cursor-pointer items-center space-x-2">
 											<input
 												type="checkbox"
-												className="h-4 w-4 shrink-0 rounded text-indigo-600 focus:ring-indigo-500"
+												className={cn('h-4 w-4 shrink-0 rounded', ft.checkboxAccent)}
 											/>
 											<span className={cn('text-sm', ft.bodyText)}>{label}</span>
 										</label>
@@ -288,7 +287,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 						<label className="mb-3 flex cursor-pointer items-center space-x-2">
 							<input
 								type="checkbox"
-								className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+								className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 							/>
 							<span className={cn('text-sm font-semibold', ft.label)}>
 								{t('transits_group_geo_nodes')}
@@ -310,7 +309,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label key={key} className="flex cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>{t(key)}</span>
 								</label>
@@ -322,7 +321,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 						<label className="mb-3 flex cursor-pointer items-center space-x-2">
 							<input
 								type="checkbox"
-								className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+								className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 							/>
 							<span className={cn('text-sm font-semibold', ft.label)}>
 								{t('transits_group_hypotheticals')}
@@ -342,7 +341,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 								<label key={label} className="flex cursor-pointer items-center space-x-2">
 									<input
 										type="checkbox"
-										className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+										className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 									/>
 									<span className={cn('text-sm', ft.bodyText)}>{label}</span>
 								</label>
@@ -359,7 +358,6 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 						{t('button_ok')}
 					</button>
 				</div>
-			</div>
 		</div>
 	);
 }

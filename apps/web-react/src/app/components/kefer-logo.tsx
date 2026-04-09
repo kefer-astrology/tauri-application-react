@@ -14,7 +14,7 @@ export function KeferIcon({ size = 32, className = '', theme = 'noon' }: KeferLo
 			case 'sunrise':
 				return { circle: '#1f2937', text: '#FFFFFF' }; // dark circle, white text
 			case 'noon':
-				return { circle: '#374151', text: '#FFFFFF' }; // dark circle, white text
+				return { circle: '#374151', text: '#FFFFFF' }; // dark circle, white text (light shell)
 			case 'twilight':
 				return { circle: '#312e81', text: '#FFFFFF' }; // dark circle, white text
 			case 'midnight':

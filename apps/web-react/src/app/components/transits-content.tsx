@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { cn } from './ui/utils';
 import { getAppFormFieldTheme } from './form-field-theme';
 import type { TransitSection } from './transits-secondary-sidebar';
@@ -45,7 +46,7 @@ function CustomDropdown({ label, value, options, onChange, ft }: CustomDropdownP
 	const isDark = ft.isDark || ft.isTwilight;
 
 	return (
-		<div className="mb-6" ref={dropdownRef}>
+		<div ref={dropdownRef}>
 			<Label className={cn('mb-2 block', ft.label)}>{label}</Label>
 
 			<button
@@ -147,15 +148,14 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 		switch (section) {
 			case 'general':
 				return (
-					<div className="flex h-full items-center justify-center p-8">
-						<div
-							className={cn(
-								'w-full max-w-3xl rounded-xl p-8',
-								ft.settingsCard,
-								'border-0 shadow-none'
-							)}
-						>
-							<div className="mb-6">
+					<div
+						className={cn(
+							'flex w-full flex-col space-y-6 rounded-xl p-6 md:p-8',
+							ft.settingsCard,
+							'border-0 shadow-none'
+						)}
+					>
+							<div>
 								<h1 className={cn('mb-2 text-2xl font-semibold', ft.title)}>
 									{t('transits_heading_general')}
 								</h1>
@@ -178,7 +178,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 								ft={ft}
 							/>
 
-							<div className="mb-6 grid grid-cols-2 gap-4">
+							<div className="grid grid-cols-2 gap-4">
 								<div className="space-y-3">
 									<label
 										className={cn(
@@ -192,7 +192,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 											onChange={(e) =>
 												setCheckboxes({ ...checkboxes, houseTransitions: e.target.checked })
 											}
-											className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+											className={cn(
+												'mt-0.5 h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50',
+												ft.checkboxAccent
+											)}
 											disabled={areCheckboxesDisabled}
 										/>
 										<span
@@ -216,7 +219,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 											onChange={(e) =>
 												setCheckboxes({ ...checkboxes, signTransitions: e.target.checked })
 											}
-											className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+											className={cn(
+												'mt-0.5 h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50',
+												ft.checkboxAccent
+											)}
 											disabled={areCheckboxesDisabled}
 										/>
 										<span
@@ -242,7 +248,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 											onChange={(e) =>
 												setCheckboxes({ ...checkboxes, transitLimits: e.target.checked })
 											}
-											className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+											className={cn(
+												'mt-0.5 h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50',
+												ft.checkboxAccent
+											)}
 											disabled={areCheckboxesDisabled}
 										/>
 										<span
@@ -266,7 +275,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 											onChange={(e) =>
 												setCheckboxes({ ...checkboxes, precessionCorrection: e.target.checked })
 											}
-											className="mt-0.5 h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
+											className={cn(
+												'mt-0.5 h-4 w-4 rounded disabled:cursor-not-allowed disabled:opacity-50',
+												ft.checkboxAccent
+											)}
 											disabled={areCheckboxesDisabled}
 										/>
 										<span
@@ -281,7 +293,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 								</div>
 							</div>
 
-							<div className="mb-4">
+							<div>
 								<Label className={cn('mb-2 block', ft.label)}>{t('transits_period_from')}:</Label>
 								<div className="grid grid-cols-3 gap-3">
 									<div>
@@ -330,7 +342,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 								</div>
 							</div>
 
-							<div className="mb-8">
+							<div>
 								<Label className={cn('mb-2 block', ft.label)}>{t('transits_period_to')}:</Label>
 								<div className="grid grid-cols-3 gap-3">
 									<div>
@@ -387,7 +399,6 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 									{t('button_ok')}
 								</button>
 							</div>
-						</div>
 					</div>
 				);
 
@@ -419,7 +430,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 							<p className={cn('text-sm', ft.muted)}>{t('transits_aspects_subtitle')}</p>
 						</div>
 
-						<div className={cn('rounded-xl p-6', ft.settingsCard, 'border-0 shadow-none')}>
+						<div className={cn('rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}>
 							<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
 								{t('transits_aspects_major')}
 							</h3>
@@ -429,7 +440,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 										<label className="flex flex-1 cursor-pointer items-center gap-3">
 											<input
 												type="checkbox"
-												className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+												className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 												defaultChecked
 											/>
 											<span className={cn('text-sm font-medium', ft.bodyText)}>
@@ -450,7 +461,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 							</div>
 						</div>
 
-						<div className={cn('rounded-xl p-6', ft.settingsCard, 'border-0 shadow-none')}>
+						<div className={cn('rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}>
 							<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
 								{t('transits_aspects_minor')}
 							</h3>
@@ -460,7 +471,7 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 										<label className="flex flex-1 cursor-pointer items-center gap-3">
 											<input
 												type="checkbox"
-												className="h-4 w-4 rounded text-indigo-600 focus:ring-indigo-500"
+												className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
 											/>
 											<span className={cn('text-sm font-medium', ft.bodyText)}>
 												{t(aspect.labelKey)}
@@ -487,8 +498,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 	const isWideBodiesSection = section === 'transiting-bodies' || section === 'transited-bodies';
 
 	return (
-		<div className="flex-1 overflow-auto">
-			<div className={isWideBodiesSection ? 'p-8' : 'max-w-4xl p-8'}>{renderContent()}</div>
-		</div>
+		<AppMainContentRoot>
+			<AppMainContentContainer maxWidth={isWideBodiesSection ? '6xl' : '4xl'}>
+				{renderContent()}
+			</AppMainContentContainer>
+		</AppMainContentRoot>
 	);
 }

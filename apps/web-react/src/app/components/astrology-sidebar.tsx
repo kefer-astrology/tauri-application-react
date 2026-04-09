@@ -91,10 +91,10 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		border: 'border-gray-200',
 		text: 'text-gray-700',
 		hover: 'hover:bg-gray-100',
-		active: 'bg-indigo-600 text-white',
-		activeIndicator: 'bg-indigo-600',
+		active: 'bg-neutral-900 text-white',
+		activeIndicator: 'bg-neutral-900',
 		separator: 'bg-gray-200',
-		logoGradient: 'from-indigo-500 to-purple-600',
+		logoGradient: 'from-neutral-700 to-neutral-900',
 		themeIconColor: '#374151'
 	},
 	twilight: {
@@ -103,7 +103,7 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		text: 'text-white',
 		hover: 'hover:bg-white/10',
 		active: 'bg-indigo-600 text-white',
-		activeIndicator: 'bg-indigo-600',
+		activeIndicator: 'bg-indigo-500',
 		separator: 'bg-white/25',
 		logoGradient: 'from-indigo-600 to-purple-600',
 		themeIconColor: '#ffffff',
@@ -132,6 +132,13 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		}
 	}
 };
+
+/**
+ * Hit area + type scale for sidebar menu rows. Shared with {@link SecondaryNavPanel}
+ * (Tranzity / Nastavení) so sub-rails match the primary rail.
+ */
+export const sidebarNavMenuRowClassName =
+	'rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200';
 
 export function AstrologySidebar({
 	onThemeChange,
@@ -200,14 +207,15 @@ export function AstrologySidebar({
 				<button
 					onClick={toggleSidebar}
 					className={cn(
-						'flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+						'flex w-full items-center gap-3',
+						sidebarNavMenuRowClassName,
 						themeStyle.text,
 						themeStyle.hover,
 						isExpanded ? 'justify-start' : 'justify-center'
 					)}
 				>
 					<Menu className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-					{isExpanded && <span className="text-sm font-medium">{t('sidebar_menu')}</span>}
+					{isExpanded && <span>{t('sidebar_menu')}</span>}
 				</button>
 			</div>
 
@@ -224,13 +232,14 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+								'flex w-full items-center gap-3',
+								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
 								isExpanded ? 'justify-start' : 'justify-center'
 							)}
 						>
 							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-							{isExpanded && <span className="text-sm font-medium">{t(item.labelKey)}</span>}
+							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
 				})}
@@ -252,23 +261,26 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+								'flex w-full items-center gap-3',
+								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
 								isExpanded ? 'justify-start' : 'justify-center'
 							)}
 						>
 							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-							{isExpanded && <span className="text-sm font-medium">{t(item.labelKey)}</span>}
+							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
 				})}
+			</nav>
 
+			{/* Bottom: Synastrie | Nastavení separator + Nastavení + theme switcher */}
+			<div className="shrink-0 space-y-0.5 px-3 pb-3">
 				{/* Separator — same as between Export / Horoskop */}
 				<div className="py-1.5">
 					<div className={cn('h-px', themeStyle.separator)} />
 				</div>
 
-				{/* Nastavení */}
 				{settingsNavDefs.map((item) => {
 					const Icon = item.icon;
 					const isActive = currentActiveItem === item.id;
@@ -280,24 +292,17 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3 rounded-xl px-3 py-2 transition-all duration-200',
+								'flex w-full items-center gap-3',
+								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
 								isExpanded ? 'justify-start' : 'justify-center'
 							)}
 						>
 							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
-							{isExpanded && <span className="text-sm font-medium">{t(item.labelKey)}</span>}
+							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
 				})}
-			</nav>
-
-			{/* Bottom Section — theme (Settings lives in main nav as last item) */}
-			<div className="space-y-0.5 px-3 pb-3">
-				{/* Separator */}
-				<div className="pb-1.5">
-					<div className={cn('h-px', themeStyle.separator)} />
-				</div>
 
 				{/* Theme Switcher */}
 				{isExpanded ? (
@@ -322,7 +327,11 @@ export function AstrologySidebar({
 										className={cn(
 											'flex items-center justify-center rounded-lg p-1.5 transition-all duration-200',
 											isSelected
-												? 'bg-indigo-600 shadow-sm'
+												? currentTheme === 'twilight' || currentTheme === 'midnight'
+													? 'bg-indigo-600 shadow-sm'
+													: currentTheme === 'sunrise'
+														? 'bg-sky-500 shadow-sm'
+														: 'bg-neutral-900 shadow-sm'
 												: cn('hover:bg-opacity-50', themeStyle.hover)
 										)}
 										title={themeLabels[themeKey]}
@@ -341,7 +350,8 @@ export function AstrologySidebar({
 					<button
 						onClick={cycleTheme}
 						className={cn(
-							'flex w-full items-center justify-center rounded-xl px-3 py-2 transition-all duration-200',
+							'flex w-full items-center justify-center',
+							sidebarNavMenuRowClassName,
 							themeStyle.hover
 						)}
 						title={t('sidebar_theme_cycle_hint', { theme: themeLabels[currentTheme] })}
