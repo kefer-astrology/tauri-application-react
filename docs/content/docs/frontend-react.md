@@ -50,6 +50,7 @@ npm run i18n:sync        # Regenerate `apps/web-react/src/locales/*.json` from `
 
 - **Source of truth**: repo root **`translations.csv`** (columns `internal_name`, `czech`, `english`, `french`, `spanish`). In a collaborative setup, maintain the sheet in **Google Sheets**, then **File → Download → CSV** (or a scheduled export) and replace `translations.csv` in the repo.
 - **Regenerate JSON**: `npm run i18n:sync` runs `scripts/csv-to-locales.mjs`, which writes the same four locale files to **every** path listed in `localeOutputDirs` (React today; add Svelte paths when that app exists). One command keeps all frontends on the same keys and strings.
+- **Regenerate JSON**: `npm run i18n:sync` runs `scripts/csv-to-locales.mjs`, which writes the same four locale files to **every** path listed in `localeOutputDirs` (React and Svelte today). One command keeps all frontends on the same keys and strings.
 - **Staying in sync**: After updating the CSV, run `npm run i18n:sync` and commit **both** `translations.csv` and the generated `**/locales/*.json`. Optionally add CI that fails if someone edits JSON by hand without syncing, or that runs the script and checks for a clean `git diff`.
 - **Runtime**: `react-i18next` + `i18next`; wrap is in **`apps/web-react/src/main.tsx`** (`I18nextProvider`). Use `useTranslation()` and `t('key')` where `key` is `internal_name` from the CSV.
 - **Settings UI**: **`apps/web-react/src/app/components/settings-view.tsx`** — language, location, house system, aspects, appearance, manual, plus **Cancel / Confirm** footer. Language is stored under **`kefer-language`**; glyph set choice writes **`glyph_set`** in `localStorage`. Other fields are UI state until workspace/theme hooks are ported. Open settings from the sidebar’s **last main nav item** (translated `settings`).
@@ -75,8 +76,8 @@ Other views (horoscope dashboard, transits, aspectarium) are still mostly presen
 Keep source glyphs under **`static/glyphs/`** (repo root). `apps/web-react` sets Vite `publicDir` to that folder, so in components you can use absolute URLs:
 
 ```tsx
-<img src="/glyphs/planets/sun.svg" alt="" />
-<img src="/glyphs/sets/classic/zodiac/aries.svg" alt="" />
+<img src="/glyphs/default/planets/sun.svg" alt="" />
+<img src="/glyphs/classic/zodiac/aries.svg" alt="" />
 ```
 
 Do not rely on old `dist/` copies for source of truth; `dist/` is build output and is gitignored.

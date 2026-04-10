@@ -10,7 +10,7 @@ Consolidated architecture reference for the Tauri + Python astrology browser.
 
 ## Overview
 
-- **Frontend**: React UI (`apps/web-react/src/app/`) calling Tauri via `apps/web-react/src/lib/tauri/` (see [frontend-react](./frontend-react/)). UI themes and i18n workflow: [ui-conventions](./ui-conventions/).
+- **Frontends**: React UI (`apps/web-react/`) and an alternate Svelte UI (`apps/web-svelte/`). Both call Tauri through `@tauri-apps/api/core`; see [frontend-react](./frontend-react/) and [frontend-svelte](./frontend-svelte/). UI themes and i18n workflow: [ui-conventions](./ui-conventions/).
 - **Backend**: Tauri (Rust) commands orchestrate workspace and computation.
 - **Compute**: Python sidecar (CLI) performs astrology calculations.
 - **Storage**: YAML for metadata + DuckDB/Parquet for positions-only data.
@@ -127,6 +127,7 @@ UI derives aspects from loaded positions when needed
 
 - `apps/web-react/src/lib/tauri/` — types and `invoke` helpers (`openWorkspaceFolder`, `saveWorkspace`, etc.).
 - `apps/web-react/src/app/App.tsx` — workspace open/save from the sidebar; extend with chart editors and data views.
+- `apps/web-svelte/src/` — alternate Svelte workspace with the more advanced panel/radix/transits UI.
 
 **To add (React):**
 

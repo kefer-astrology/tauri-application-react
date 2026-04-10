@@ -39,6 +39,10 @@ import {
 	saveWorkspace
 } from '@/lib/tauri/workspace';
 import type { WorkspaceDefaultsDto } from '@/lib/tauri/types';
+import {
+	readStoredAppShellIconSet,
+	type AppShellIconSetId
+} from '@/lib/app-shell-icons';
 
 function mergeWorkspaceDefaults(
 	prev: WorkspaceDefaultsState,
@@ -70,6 +74,9 @@ function mergeWorkspaceDefaults(
 export default function App() {
 	const { t } = useTranslation();
 	const [theme, setTheme] = useState<Theme>('noon');
+	const [appShellIconSet, setAppShellIconSet] = useState<AppShellIconSetId>(() =>
+		readStoredAppShellIconSet()
+	);
 	const formTheme = useMemo(() => getAppFormFieldTheme(theme), [theme]);
 	const [activeView, setActiveView] = useState<string>('horoskop');
 	const [activeTransitSection, setActiveTransitSection] = useState<TransitSection>('general');
@@ -240,6 +247,7 @@ export default function App() {
 					<AstrologySidebar
 						onThemeChange={setTheme}
 						currentTheme={theme}
+						appShellIconSet={appShellIconSet}
 						onMenuItemClick={handleMenuItemClick}
 						activeMenuItem={activeView}
 					/>
@@ -296,7 +304,12 @@ export default function App() {
 						) : activeView === 'tranzity' ? (
 							<TransitsContent section={activeTransitSection} theme={theme} />
 						) : activeView === 'nastaveni' ? (
-							<SettingsView theme={theme} section={activeSettingsSection} />
+							<SettingsView
+								theme={theme}
+								section={activeSettingsSection}
+								appShellIconSet={appShellIconSet}
+								onAppShellIconSetChange={setAppShellIconSet}
+							/>
 						) : (
 							<AppMainContentRoot>
 								<AppMainContentContainer maxWidth="2xl">

@@ -1,26 +1,19 @@
 import React, { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
-	Menu,
-	Save,
-	Grid3x3,
-	Info,
-	RefreshCw,
-	RotateCcw,
-	Users,
-	Settings,
 	Sunrise,
 	Sun,
 	Sunset,
-	Moon,
-	CirclePlus,
-	FolderOpen,
-	Upload
+	Moon
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from './ui/utils';
-import { KeferIcon, KeferLogoFull } from './kefer-logo';
-import { HoroskopeIcon, TranzityIcon } from './astrology-icons';
+import type { AppShellIconId, AppShellIconSetId } from '@/lib/app-shell-icons';
+import {
+	renderAppShellIcon,
+	renderAppShellLogoFull,
+	renderAppShellLogoMark
+} from '@/lib/app-shell-icons';
 
 export type Theme = 'sunrise' | 'noon' | 'twilight' | 'midnight';
 
@@ -29,29 +22,32 @@ interface SidebarProps {
 	currentTheme?: Theme;
 	onMenuItemClick?: (itemId: string) => void;
 	activeMenuItem?: string;
+	appShellIconSet?: AppShellIconSetId;
 }
 
 /** `internal_name` in translations.csv */
 const menuItemDefs = [
-	{ id: 'novy', labelKey: 'sidebar_new', icon: CirclePlus },
-	{ id: 'otevrit', labelKey: 'sidebar_open', icon: FolderOpen },
-	{ id: 'ulozit', labelKey: 'sidebar_save', icon: Save },
-	{ id: 'export', labelKey: 'export', icon: Upload }
+	{ id: 'novy', labelKey: 'sidebar_new', iconId: 'new' as const },
+	{ id: 'otevrit', labelKey: 'sidebar_open', iconId: 'open' as const },
+	{ id: 'ulozit', labelKey: 'sidebar_save', iconId: 'save' as const },
+	{ id: 'export', labelKey: 'export', iconId: 'export' as const }
 ] as const;
 
 /** Horoskop → Synastrie (below first separator, after Export block). */
 const appSectionDefs = [
-	{ id: 'horoskop', labelKey: 'sidebar_horoscope', icon: HoroskopeIcon },
-	{ id: 'aspektarium', labelKey: 'aspects_aspects', icon: Grid3x3 },
-	{ id: 'informace', labelKey: 'sidebar_information', icon: Info },
-	{ id: 'tranzity', labelKey: 'sidebar_transits', icon: TranzityIcon },
-	{ id: 'dynamika', labelKey: 'sidebar_dynamics', icon: RefreshCw },
-	{ id: 'revoluce', labelKey: 'revolution', icon: RotateCcw },
-	{ id: 'synastrie', labelKey: 'sidebar_synastry', icon: Users }
+	{ id: 'horoskop', labelKey: 'sidebar_horoscope', iconId: 'horoscope' as const },
+	{ id: 'aspektarium', labelKey: 'aspects_aspects', iconId: 'aspects' as const },
+	{ id: 'informace', labelKey: 'sidebar_information', iconId: 'information' as const },
+	{ id: 'tranzity', labelKey: 'sidebar_transits', iconId: 'transits' as const },
+	{ id: 'dynamika', labelKey: 'sidebar_dynamics', iconId: 'dynamics' as const },
+	{ id: 'revoluce', labelKey: 'revolution', iconId: 'revolution' as const },
+	{ id: 'synastrie', labelKey: 'sidebar_synastry', iconId: 'synastry' as const }
 ] as const;
 
 /** Second separator (Synastrie / Nastavení), same rule as Export / Horoskop. */
-const settingsNavDefs = [{ id: 'nastaveni', labelKey: 'settings', icon: Settings }] as const;
+const settingsNavDefs = [
+	{ id: 'nastaveni', labelKey: 'settings', iconId: 'settings' as const }
+] as const;
 
 const themeIconConfig = {
 	sunrise: { icon: Sunrise },
@@ -138,13 +134,14 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
  * (Tranzity / Nastavení) so sub-rails match the primary rail.
  */
 export const sidebarNavMenuRowClassName =
-	'rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200';
+	'min-h-10 rounded-md px-2.5 py-1 text-sm font-medium transition-all duration-200';
 
 export function AstrologySidebar({
 	onThemeChange,
 	currentTheme = 'noon',
 	onMenuItemClick,
-	activeMenuItem
+	activeMenuItem,
+	appShellIconSet = 'default'
 }: SidebarProps) {
 	const { t } = useTranslation();
 	const [isExpanded, setIsExpanded] = useState(true);
@@ -177,6 +174,20 @@ export function AstrologySidebar({
 
 	const themeStyle = sidebarThemeStyles[currentTheme];
 
+	const renderSharedIcon = (
+		iconId: AppShellIconId,
+		label: string,
+		className: string
+	) => (
+		renderAppShellIcon({
+			iconId,
+			iconSet: appShellIconSet,
+			title: label,
+			className,
+			size: 30
+		})
+	);
+
 	return (
 		<aside
 			className={cn(
@@ -192,37 +203,54 @@ export function AstrologySidebar({
 			}
 		>
 			{/* Logo Area */}
-			<div className={cn('px-3', isExpanded ? 'mb-4' : 'mb-3')}>
+			<div className={cn('px-3', isExpanded ? 'mb-2.5' : 'mb-2')}>
 				<div className={cn('flex items-center', isExpanded ? 'justify-start' : 'justify-center')}>
 					{isExpanded ? (
-						<KeferLogoFull iconSize={28} className={themeStyle.text} theme={currentTheme} />
+						<div className={cn('flex items-center gap-2.5', themeStyle.text)}>
+							{renderAppShellLogoMark({
+								iconSet: appShellIconSet,
+								theme: currentTheme,
+								className: 'h-7 w-7',
+								size: 28
+							})}
+							{renderAppShellLogoFull({
+								iconSet: appShellIconSet,
+								theme: currentTheme,
+								className: themeStyle.text,
+								iconSize: 28
+							})}
+						</div>
 					) : (
-						<KeferIcon size={32} theme={currentTheme} />
+						renderAppShellLogoMark({
+							iconSet: appShellIconSet,
+							theme: currentTheme,
+							className: themeStyle.text,
+							size: 32
+						})
 					)}
 				</div>
 			</div>
 
 			{/* Menu Toggle Button */}
-			<div className="mb-1 px-3">
+			<div className="mb-px px-3">
 				<button
 					onClick={toggleSidebar}
 					className={cn(
-						'flex w-full items-center gap-3',
+						'flex w-full items-center gap-2',
 						sidebarNavMenuRowClassName,
 						themeStyle.text,
 						themeStyle.hover,
-						isExpanded ? 'justify-start' : 'justify-center'
+						isExpanded ? 'justify-start' : 'mx-auto h-11 w-11 justify-center px-0 py-0'
 					)}
 				>
-					<Menu className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+					{renderSharedIcon('menu', t('sidebar_menu'), 'h-7 w-7 flex-shrink-0')}
 					{isExpanded && <span>{t('sidebar_menu')}</span>}
 				</button>
 			</div>
 
 			{/* Main Menu Items */}
-			<nav className="scrollbar-hide flex-1 space-y-0.5 overflow-y-auto px-3">
+			<nav className="scrollbar-hide flex-1 space-y-0 overflow-y-auto px-3">
 				{menuItemDefs.map((item) => {
-					const Icon = item.icon;
 					const isActive = currentActiveItem === item.id;
 
 					return (
@@ -232,26 +260,29 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3',
+								'flex w-full items-center gap-2',
 								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
-								isExpanded ? 'justify-start' : 'justify-center'
+								isExpanded ? 'justify-start' : 'mx-auto h-11 w-11 justify-center px-0 py-0'
 							)}
 						>
-							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+							{renderSharedIcon(
+								item.iconId,
+								t(item.labelKey),
+								'h-8 w-8 flex-shrink-0'
+							)}
 							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
 				})}
 
 				{/* Separator */}
-				<div className="py-1.5">
+				<div className="py-0.5">
 					<div className={cn('h-px', themeStyle.separator)} />
 				</div>
 
 				{/* App sections (Horoskop … Synastrie) */}
 				{appSectionDefs.map((item) => {
-					const Icon = item.icon;
 					const isActive = currentActiveItem === item.id;
 
 					return (
@@ -261,13 +292,17 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3',
+								'flex w-full items-center gap-2',
 								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
-								isExpanded ? 'justify-start' : 'justify-center'
+								isExpanded ? 'justify-start' : 'mx-auto h-11 w-11 justify-center px-0 py-0'
 							)}
 						>
-							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+							{renderSharedIcon(
+								item.iconId,
+								t(item.labelKey),
+								'h-8 w-8 flex-shrink-0'
+							)}
 							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
@@ -275,14 +310,13 @@ export function AstrologySidebar({
 			</nav>
 
 			{/* Bottom: Synastrie | Nastavení separator + Nastavení + theme switcher */}
-			<div className="shrink-0 space-y-0.5 px-3 pb-3">
+			<div className="shrink-0 space-y-0 px-3 pb-3">
 				{/* Separator — same as between Export / Horoskop */}
-				<div className="py-1.5">
+				<div className="py-0.5">
 					<div className={cn('h-px', themeStyle.separator)} />
 				</div>
 
 				{settingsNavDefs.map((item) => {
-					const Icon = item.icon;
 					const isActive = currentActiveItem === item.id;
 
 					return (
@@ -292,13 +326,17 @@ export function AstrologySidebar({
 								onMenuItemClick?.(item.id);
 							}}
 							className={cn(
-								'flex w-full items-center gap-3',
+								'flex w-full items-center gap-2',
 								sidebarNavMenuRowClassName,
 								isActive ? themeStyle.active : cn(themeStyle.text, themeStyle.hover),
-								isExpanded ? 'justify-start' : 'justify-center'
+								isExpanded ? 'justify-start' : 'mx-auto h-11 w-11 justify-center px-0 py-0'
 							)}
 						>
-							<Icon className="h-5 w-5 flex-shrink-0" strokeWidth={1.5} />
+							{renderSharedIcon(
+								item.iconId,
+								t(item.labelKey),
+								'h-8 w-8 flex-shrink-0'
+							)}
 							{isExpanded && <span>{t(item.labelKey)}</span>}
 						</button>
 					);
@@ -308,7 +346,7 @@ export function AstrologySidebar({
 				{isExpanded ? (
 					<div className="pt-1">
 						<div
-							className="bg-opacity-50 flex items-center justify-between gap-1 rounded-xl px-2 py-2"
+							className="bg-opacity-50 flex items-center justify-between gap-0.5 rounded-md px-1.5 py-1.5"
 							style={{
 								backgroundColor:
 									currentTheme === 'midnight' || currentTheme === 'twilight'
@@ -317,15 +355,15 @@ export function AstrologySidebar({
 							}}
 						>
 							{(Object.keys(themeIconConfig) as Theme[]).map((themeKey) => {
-								const { icon: Icon } = themeIconConfig[themeKey];
 								const isSelected = currentTheme === themeKey;
+								const themeIconId = `theme-${themeKey}` as AppShellIconId;
 
 								return (
 									<button
 										key={themeKey}
 										onClick={() => handleThemeClick(themeKey)}
 										className={cn(
-											'flex items-center justify-center rounded-lg p-1.5 transition-all duration-200',
+											'flex size-7 shrink-0 items-center justify-center rounded-sm p-0 transition-all duration-200',
 											isSelected
 												? currentTheme === 'twilight' || currentTheme === 'midnight'
 													? 'bg-indigo-600 shadow-sm'
@@ -336,11 +374,9 @@ export function AstrologySidebar({
 										)}
 										title={themeLabels[themeKey]}
 									>
-										<Icon
-											className="h-4 w-4"
-											strokeWidth={1.5}
-											style={{ color: isSelected ? '#FFFFFF' : themeStyle.themeIconColor }}
-										/>
+										<span style={{ color: isSelected ? '#FFFFFF' : themeStyle.themeIconColor }}>
+											{renderSharedIcon(themeIconId, themeLabels[themeKey], 'h-[13px] w-[13px]')}
+										</span>
 									</button>
 								);
 							})}
@@ -352,15 +388,18 @@ export function AstrologySidebar({
 						className={cn(
 							'flex w-full items-center justify-center',
 							sidebarNavMenuRowClassName,
-							themeStyle.hover
+							themeStyle.hover,
+							'mx-auto h-11 w-11 px-0 py-0'
 						)}
 						title={t('sidebar_theme_cycle_hint', { theme: themeLabels[currentTheme] })}
 					>
-						{React.createElement(themeIconConfig[currentTheme].icon, {
-							className: 'w-5 h-5',
-							strokeWidth: 1.5,
-							style: { color: themeStyle.themeIconColor }
-						})}
+						<span style={{ color: themeStyle.themeIconColor }}>
+							{renderSharedIcon(
+								`theme-${currentTheme}` as AppShellIconId,
+								themeLabels[currentTheme],
+								'h-[13px] w-[13px]'
+							)}
+						</span>
 					</button>
 				)}
 			</div>

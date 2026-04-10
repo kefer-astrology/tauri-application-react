@@ -4,6 +4,7 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import SharedSvgIcon from '$lib/components/SharedSvgIcon.svelte';
+  import { resolveAppShellIconPath, resolveAppShellLogoFullPath } from '$lib/stores/app-shell-icons.svelte';
   import { scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
 
@@ -14,22 +15,6 @@
     onClick: () => void | Promise<void>;
     group: 'file' | 'view' | 'meta';
   };
-
-  const sharedShellAssets = {
-    logoFull: '/app-shell/logo-full.svg',
-    new: '/app-shell/icons/new.svg',
-    load: '/app-shell/icons/open.svg',
-    save: '/app-shell/icons/save.svg',
-    export: '/app-shell/icons/export.svg',
-    radix: '/app-shell/icons/horoscope.svg',
-    aspects: '/app-shell/icons/aspects.svg',
-    info: '/app-shell/icons/information.svg',
-    transits: '/app-shell/icons/transits.svg',
-    dynamic: '/app-shell/icons/dynamics.svg',
-    revolution: '/app-shell/icons/revolution.svg',
-    favorite: '/app-shell/icons/favorite.svg',
-    settings: '/app-shell/icons/settings.svg'
-  } satisfies Record<'logoFull' | Exclude<ActionId, 'about'>, string>;
 
   function setTab(tab: Tab) {
     layout.selectedTab = tab;
@@ -72,7 +57,23 @@
   ];
 
   function iconFor(id: ActionId) {
-    return sharedShellAssets[id as Exclude<ActionId, 'about'>] ?? sharedShellAssets.radix;
+    const appShellIdMap = {
+      new: 'new',
+      load: 'open',
+      save: 'save',
+      export: 'export',
+      radix: 'horoscope',
+      aspects: 'aspects',
+      info: 'information',
+      transits: 'transits',
+      dynamic: 'dynamics',
+      revolution: 'revolution',
+      favorite: 'favorite',
+      settings: 'settings'
+    } as const;
+
+    const appShellId = appShellIdMap[id as keyof typeof appShellIdMap] ?? 'horoscope';
+    return resolveAppShellIconPath(appShellId);
   }
 
   function isActive(id: ActionId): boolean {
@@ -98,7 +99,7 @@
 <div class="w-full h-full grid grid-cols-12 items-center px-2 gap-0 overflow-hidden">
   <!-- Logo: columns 1-3 -->
   <div class="col-span-3 h-full flex items-center justify-center py-3">
-    <SharedSvgIcon src={sharedShellAssets.logoFull} class="block h-3/4 w-full text-white" size={148} title="Kefer" />
+    <SharedSvgIcon src={resolveAppShellLogoFullPath()} class="block h-3/4 w-full text-white" size={148} title="Kefer" />
   </div>
 
   <!-- Space: column 4 -->

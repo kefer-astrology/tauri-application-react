@@ -18,6 +18,7 @@
   import { Input } from '$lib/components/ui/input/index.js';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
   import { getGlyphContent, signIdFromLongitude, glyphSettings, glyphSetOptions, setGlyphSet, hardResetGlyphStorage, type GlyphSetId } from '$lib/stores/glyphs.svelte';
+  import { appShellIconSetOptions, appShellIconSettings, setAppShellIconSet, type AppShellIconSetId } from '$lib/stores/app-shell-icons.svelte';
   import BodySelector from '$lib/components/BodySelector.svelte';
   import PanelMenu from '$lib/components/PanelMenu.svelte';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
@@ -195,6 +196,10 @@
   const glyphSetTriggerContent = $derived(
     glyphSetOptions.find((s) => s.id === glyphSetValue)?.label ?? t('select_glyph_set', {}, 'Select glyph set')
   );
+  let appShellIconSetValue = $state(String(appShellIconSettings.activeSet));
+  const appShellIconSetTriggerContent = $derived(
+    appShellIconSetOptions.find((s) => s.id === appShellIconSetValue)?.label ?? 'Select app shell icon set'
+  );
   
   // Sync language changes
   $effect(() => {
@@ -221,6 +226,19 @@
   $effect(() => {
     if (glyphSetValue !== glyphSettings.activeSet && glyphSetOptions.some((s) => s.id === glyphSetValue)) {
       setGlyphSet(glyphSetValue as GlyphSetId);
+      settingsChanged = true;
+    }
+  });
+
+  $effect(() => {
+    if (appShellIconSetValue !== appShellIconSettings.activeSet) {
+      appShellIconSetValue = appShellIconSettings.activeSet;
+    }
+  });
+
+  $effect(() => {
+    if (appShellIconSetValue !== appShellIconSettings.activeSet && appShellIconSetOptions.some((s) => s.id === appShellIconSetValue)) {
+      setAppShellIconSet(appShellIconSetValue as AppShellIconSetId);
       settingsChanged = true;
     }
   });
@@ -1474,6 +1492,29 @@
                     >
                       Reset glyph cache
                     </Button>
+                  </div>
+                  <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
+                    <label class="block text-sm font-medium opacity-90" for="settings-app-shell-set">App shell icon set</label>
+                    <div class="min-w-[220px]">
+                      <Select.Root type="single" name="appShellIconSet" bind:value={appShellIconSetValue}>
+                        <Select.Trigger class="w-[220px]" id="settings-app-shell-set">
+                          {appShellIconSetTriggerContent}
+                        </Select.Trigger>
+                        <Select.Content>
+                          <Select.Group>
+                            <Select.Label>Icon sets</Select.Label>
+                            {#each appShellIconSetOptions as setOpt (setOpt.id)}
+                              <Select.Item value={setOpt.id} label={setOpt.label}>
+                                {setOpt.label}
+                              </Select.Item>
+                            {/each}
+                          </Select.Group>
+                        </Select.Content>
+                      </Select.Root>
+                    </div>
+                    <div class="text-xs text-muted-foreground max-w-[260px]">
+                      {appShellIconSetOptions.find((s) => s.id === appShellIconSetValue)?.description}
+                    </div>
                   </div>
                   <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
                     <div class="block text-sm font-medium opacity-90">Radix chart – element colors</div>

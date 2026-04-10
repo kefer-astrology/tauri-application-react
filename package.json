@@ -9,18 +9,26 @@
 	],
 	"scripts": {
 		"dev": "npm run dev -w web-react",
+		"dev:svelte": "npm run dev -w web-svelte",
 		"build": "npm run build -w web-react",
+		"build:svelte": "npm run build -w web-svelte",
 		"build:frontends": "npm run build --workspaces --if-present",
 		"build:frontends:docs": "VITE_PUBLIC_BASE=./ npm run build --workspaces --if-present",
 		"preview": "npm run preview -w web-react",
+		"preview:svelte": "npm run preview -w web-svelte",
 		"check": "npm run check -w web-react",
+		"check:svelte": "npm run check -w web-svelte",
 		"docs:prepare": "npm run build:frontends:docs && node scripts/prepare-docs.mjs",
 		"docs:dev": "npm run docs:prepare && hugo server --source docs",
 		"docs:build": "npm run docs:prepare && hugo --source docs --destination ../dist-docs --minify",
 		"i18n:sync": "node scripts/csv-to-locales.mjs",
 		"format": "prettier --write .",
 		"lint": "prettier --check . && eslint .",
-		"tauri": "tauri"
+		"tauri": "tauri",
+		"tauri:dev": "tauri dev --config src-tauri/tauri.react.conf.json",
+		"tauri:dev:svelte": "tauri dev --config src-tauri/tauri.svelte.conf.json",
+		"tauri:build": "tauri build --config src-tauri/tauri.react.conf.json",
+		"tauri:build:svelte": "tauri build --config src-tauri/tauri.svelte.conf.json"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",

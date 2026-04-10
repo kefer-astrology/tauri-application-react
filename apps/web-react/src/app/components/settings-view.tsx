@@ -20,6 +20,12 @@ import { getAppFormFieldTheme } from './form-field-theme';
 import type { SettingsSectionId } from './settings-secondary-sidebar';
 import type { Theme } from './astrology-sidebar';
 import type { AppLanguage } from '@/lib/i18n';
+import {
+	APP_SHELL_ICON_SET_KEY,
+	APP_SHELL_ICON_SET_OPTIONS,
+	readStoredAppShellIconSet,
+	type AppShellIconSetId
+} from '@/lib/app-shell-icons';
 
 const LANG_BUBBLES: { code: AppLanguage; label: string }[] = [
 	{ code: 'cs', label: 'CS' },
@@ -48,14 +54,14 @@ const PRESET_OPTIONS = [
 
 const GLYPH_SET_OPTIONS = [
 	{
-		id: 'kerykeion' as const,
-		label: 'Kerykeion',
-		description: 'Vector astrology symbols.'
+		id: 'default' as const,
+		label: 'Default',
+		description: 'Current shared astrology glyph set.'
 	},
 	{
 		id: 'classic' as const,
 		label: 'Classic',
-		description: 'Compact textual glyph set.'
+		description: 'Kerykeion astrology glyph set.'
 	}
 ];
 
@@ -73,11 +79,12 @@ const GLYPH_SET_KEY = 'glyph_set';
 function readStoredGlyphSet(): (typeof GLYPH_SET_OPTIONS)[number]['id'] {
 	try {
 		const v = localStorage.getItem(GLYPH_SET_KEY);
-		if (v === 'kerykeion' || v === 'classic') return v;
+		if (v === 'default' || v === 'classic') return v;
+		if (v === 'kerykeion') return 'classic';
 	} catch {
 		/* ignore */
 	}
-	return 'kerykeion';
+	return 'default';
 }
 
 export type { SettingsSectionId } from './settings-secondary-sidebar';
@@ -85,9 +92,16 @@ export type { SettingsSectionId } from './settings-secondary-sidebar';
 interface SettingsViewProps {
 	theme: Theme;
 	section: SettingsSectionId;
+	appShellIconSet: AppShellIconSetId;
+	onAppShellIconSetChange: (value: AppShellIconSetId) => void;
 }
 
-export function SettingsView({ theme, section }: SettingsViewProps) {
+export function SettingsView({
+	theme,
+	section,
+	appShellIconSet,
+	onAppShellIconSetChange
+}: SettingsViewProps) {
 	const { t, i18n } = useTranslation();
 	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
 	const [settingsChanged, setSettingsChanged] = useState(false);
@@ -110,7 +124,7 @@ export function SettingsView({ theme, section }: SettingsViewProps) {
 	);
 
 	const onGlyphSetChange = useCallback((value: string) => {
-		const v = value === 'classic' || value === 'kerykeion' ? value : 'kerykeion';
+		const v = value === 'classic' || value === 'default' ? value : 'default';
 		setGlyphSetValue(v);
 		setSettingsChanged(true);
 		try {
@@ -119,6 +133,20 @@ export function SettingsView({ theme, section }: SettingsViewProps) {
 			/* ignore */
 		}
 	}, []);
+
+	const onAppShellSetChange = useCallback(
+		(value: string) => {
+			const next = value === 'modern' ? 'modern' : 'default';
+			onAppShellIconSetChange(next);
+			setSettingsChanged(true);
+			try {
+				localStorage.setItem(APP_SHELL_ICON_SET_KEY, next);
+			} catch {
+				/* ignore */
+			}
+		},
+		[onAppShellIconSetChange]
+	);
 
 	const markChanged = useCallback(() => setSettingsChanged(true), []);
 
@@ -136,13 +164,15 @@ export function SettingsView({ theme, section }: SettingsViewProps) {
 		setPresetValue('default');
 		const g = readStoredGlyphSet();
 		setGlyphSetValue(g);
-	}, []);
+		onAppShellIconSetChange(readStoredAppShellIconSet());
+	}, [onAppShellIconSetChange]);
 
 	const handleConfirm = useCallback(() => {
 		setSettingsChanged(false);
 	}, []);
 
 	const glyphDescription = GLYPH_SET_OPTIONS.find((s) => s.id === glyphSetValue)?.description;
+	const appShellDescription = APP_SHELL_ICON_SET_OPTIONS.find((s) => s.id === appShellIconSet)?.description;
 
 	return (
 		<AppMainContentRoot className="min-h-full">
@@ -387,6 +417,31 @@ export function SettingsView({ theme, section }: SettingsViewProps) {
 									</Select>
 									{glyphDescription ? (
 										<p className={cn('text-xs', ft.muted)}>{glyphDescription}</p>
+									) : null}
+								</div>
+								<div className="space-y-2">
+									<Label htmlFor="settings-app-shell-set" className={ft.label}>
+										App shell icon set
+									</Label>
+									<Select value={appShellIconSet} onValueChange={onAppShellSetChange}>
+										<SelectTrigger
+											id="settings-app-shell-set"
+											className={cn(ft.selectTrigger, 'max-w-[280px] shadow-inner')}
+										>
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent className={ft.selectContent}>
+											{APP_SHELL_ICON_SET_OPTIONS.map((setOpt) => (
+												<SelectItem key={setOpt.id} value={setOpt.id} className={ft.selectItem}>
+													{setOpt.label}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
+									{appShellDescription ? (
+										<p className={cn('text-xs', ft.muted)}>
+											{appShellDescription}. Ink variant switches automatically by theme.
+										</p>
 									) : null}
 								</div>
 							</div>

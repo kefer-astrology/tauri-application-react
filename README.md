@@ -26,7 +26,7 @@ Project docs live in **[`docs/`](docs/)** as a Hugo site source. The main entryp
 
 - **Node.js** (current LTS is fine; align with your team’s version policy).
 - **Rust** toolchain for `cargo tauri dev` / `cargo tauri build` — [Install Rust](https://www.rust-lang.org/tools/install).
-- **Python sidecar**: the desktop build expects a binary at **`src-tauri/binaries/kefer-backend`** (see `src-tauri/tauri.conf.json` `bundle.resources`). If it is missing, restore or rebuild it before running the full app; details are in [frontend-react](docs/content/docs/frontend-react.md) and [python-package](docs/content/docs/python-package.md).
+- **Python sidecar**: desktop packaging expects the sidecar to be staged inside **`src-tauri/binaries/`** as `kefer-backend` or `kefer-backend.exe`. If it is missing, rebuild it before running the full app; details are in [frontend-react](docs/content/docs/frontend-react.md) and [python-package](docs/content/docs/python-package.md).
 
 On **Windows**, install **MSVC** (“Desktop development with C++”) before Rust/Node if you build natively. On **Linux**, follow [Tauri’s Linux dependencies](https://tauri.app/start/prerequisites/) for your distro.
 
@@ -51,6 +51,7 @@ npm run docs:prepare     # Build app frontends and stage them into the Hugo site
 npm run docs:dev         # Hugo dev server for docs/
 npm run docs:build       # Production Hugo build → dist-docs/
 npm run i18n:sync        # Regenerate apps/web-react/src/locales/*.json from translations.csv
+python scripts/build-backend-sidecar.py  # Build and stage kefer-backend into src-tauri/binaries/
 ```
 
 ## Troubleshooting

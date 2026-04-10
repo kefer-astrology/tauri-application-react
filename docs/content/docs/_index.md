@@ -12,7 +12,7 @@ Start here for how the Kefer desktop app is structured and how to work on it.
 
 | Layer                                      | Role                                                                                       |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| **React** (`src/app/`, `src/main.tsx`)     | UI shell (shadcn-style Radix components + MUI where used).                                 |
+| **Frontends** (`apps/web-react/`, `apps/web-svelte/`) | UI workspaces. React is the current primary shell; Svelte is the more advanced alternate build. |
 | **Tauri** (`src-tauri/`)                   | Native window, `invoke` commands, Python sidecar lifecycle.                                |
 | **Python** (`backend-python/`)             | Ephemeris / chart computation (sidecar binary bundled in `src-tauri/binaries/`).           |
 | **Static assets** (`static/` at repo root) | Shared glyphs and favicon; each Vite app points `publicDir` here; URLs stay `/glyphs/...`. |
@@ -20,12 +20,13 @@ Start here for how the Kefer desktop app is structured and how to work on it.
 ## Guides (read in this order)
 
 1. **[frontend-react](./frontend-react/)** — React + Vite + Tauri wiring, Tauri API layer, assets, dev commands.
-2. **[ui-conventions](./ui-conventions/)** — Four themes, `sidebarThemeStyles`, secondary nav (transits/settings), i18n workflow (`translations.csv` → `npm run i18n:sync`).
-3. **[architecture](./architecture/)** — Workspace layout, storage model, data flow (Rust/Python).
-4. **[python-package](./python-package/)** — Python module and CLI.
-5. **[time-navigation](./time-navigation/)** — Time navigation design (reference; implement with React state/hooks).
-6. **[physical-properties](./physical-properties/)** — JPL / physical fields.
-7. **[integration-examples](./integration-examples/)** — `invoke` patterns and examples (some older snippets are illustrative only).
+2. **[frontend-svelte](./frontend-svelte/)** — Svelte workspace layout, docs build behavior, and alternate Tauri scripts.
+3. **[ui-conventions](./ui-conventions/)** — Four themes, `sidebarThemeStyles`, secondary nav (transits/settings), i18n workflow (`translations.csv` → `npm run i18n:sync`).
+4. **[architecture](./architecture/)** — Workspace layout, storage model, data flow (Rust/Python).
+5. **[python-package](./python-package/)** — Python module and CLI.
+6. **[time-navigation](./time-navigation/)** — Time navigation design (reference; implement with React state/hooks).
+7. **[physical-properties](./physical-properties/)** — JPL / physical fields.
+8. **[integration-examples](./integration-examples/)** — `invoke` patterns and examples (some older snippets are illustrative only).
 
 ## Historical / planning notes
 

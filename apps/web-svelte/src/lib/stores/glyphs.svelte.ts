@@ -2,7 +2,7 @@
 // - Supports switchable default glyph image sets
 // - Allows per-glyph custom SVG overrides persisted in localStorage
 
-export type GlyphSetId = 'kerykeion' | 'classic';
+export type GlyphSetId = 'default' | 'classic';
 
 export interface GlyphDefinition {
   id: string;
@@ -22,8 +22,8 @@ export interface GlyphSetOption {
 }
 
 export const glyphSetOptions: GlyphSetOption[] = [
-  { id: 'kerykeion', label: 'Kerykeion', description: 'Vector astrology symbols.' },
-  { id: 'classic', label: 'Classic', description: 'Compact textual glyph set.' },
+  { id: 'default', label: 'Default', description: 'Current shared astrology glyph set.' },
+  { id: 'classic', label: 'Classic', description: 'Kerykeion astrology glyph set.' },
 ];
 
 const GLYPH_SET_STORAGE_KEY = 'glyph_set';
@@ -113,13 +113,15 @@ function hasLocalStorage(): boolean {
   return typeof localStorage !== 'undefined';
 }
 
-function isGlyphSetId(value: string): value is GlyphSetId {
-  return glyphSetOptions.some((option) => option.id === value);
+function normalizeGlyphSetId(value: string | null): GlyphSetId {
+  if (value === 'kerykeion') return 'classic';
+  if (value === 'default' || value === 'classic') return value;
+  return 'default';
 }
 
 function glyphPathForSet(setId: GlyphSetId, type: 'planet' | 'zodiac', id: string): string {
   const folder = type === 'planet' ? 'planets' : 'zodiac';
-  return `/glyphs/sets/${setId}/${folder}/${id}.svg`;
+  return `/glyphs/${setId}/${folder}/${id}.svg`;
 }
 
 function buildDefaultGlyphs(setId: GlyphSetId): Record<string, GlyphDefinition> {
@@ -139,12 +141,12 @@ function buildDefaultGlyphs(setId: GlyphSetId): Record<string, GlyphDefinition> 
 }
 
 function loadStoredGlyphSet(): GlyphSetId {
-  if (!hasLocalStorage()) return 'kerykeion';
+  if (!hasLocalStorage()) return 'default';
   try {
     const stored = localStorage.getItem(GLYPH_SET_STORAGE_KEY);
-    return stored && isGlyphSetId(stored) ? stored : 'kerykeion';
+    return normalizeGlyphSetId(stored);
   } catch {
-    return 'kerykeion';
+    return 'default';
   }
 }
 

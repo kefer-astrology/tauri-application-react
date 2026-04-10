@@ -16,8 +16,8 @@ const csvPath = path.join(root, 'translations.csv');
 
 /** Each frontend’s `src/.../locales` (or equivalent) — add new apps here. */
 const localeOutputDirs = [
-	path.join(root, 'apps', 'web-react', 'src', 'locales')
-	// path.join(root, 'apps', 'web-svelte', 'src', 'lib', 'locales'),
+	path.join(root, 'apps', 'web-react', 'src', 'locales'),
+	path.join(root, 'apps', 'web-svelte', 'src', 'lib', 'i18n'),
 ];
 
 function parseLine(line) {
