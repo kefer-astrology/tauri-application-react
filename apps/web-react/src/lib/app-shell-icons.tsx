@@ -1,5 +1,13 @@
 import { SharedSvgIcon } from '@/app/components/shared-svg-icon';
 
+const ASSET_BASE_URL = import.meta.env.BASE_URL;
+
+function assetUrl(relativePath: string): string {
+	const normalizedBase = ASSET_BASE_URL.endsWith('/') ? ASSET_BASE_URL : `${ASSET_BASE_URL}/`;
+	const normalizedPath = relativePath.replace(/^\/+/, '');
+	return `${normalizedBase}${normalizedPath}`;
+}
+
 export type AppShellTheme = 'sunrise' | 'noon' | 'twilight' | 'midnight';
 export type AppShellIconSetId = 'default' | 'modern';
 export type AppShellInkVariant = 'black' | 'white';
@@ -60,11 +68,11 @@ const iconFileNames: Record<AppShellIconId, string> = {
 };
 
 function appShellIconPath(iconSet: AppShellIconSetId, iconId: AppShellIconId): string {
-	return `/app-shell/icons/${iconSet}/${iconFileNames[iconId]}`;
+	return assetUrl(`app-shell/icons/${iconSet}/${iconFileNames[iconId]}`);
 }
 
 function appShellLogoPath(iconSet: AppShellIconSetId, variant: 'full' | 'mark'): string {
-	return `/app-shell/logo-${variant}-${iconSet}.svg`;
+	return assetUrl(`app-shell/logo-${variant}-${iconSet}.svg`);
 }
 
 export function readStoredAppShellIconSet(): AppShellIconSetId {

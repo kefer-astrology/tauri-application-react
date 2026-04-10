@@ -7,6 +7,7 @@ export interface AppShellIconSetOption {
 }
 
 export const APP_SHELL_ICON_SET_STORAGE_KEY = 'app_shell_icon_set';
+const ASSET_BASE_URL = import.meta.env.BASE_URL;
 
 export const appShellIconSetOptions: AppShellIconSetOption[] = [
   {
@@ -93,14 +94,20 @@ const assetFileNames: Record<AppShellAssetId, string> = {
   'theme-midnight': 'theme-midnight.svg',
 };
 
+function assetUrl(relativePath: string): string {
+  const normalizedBase = ASSET_BASE_URL.endsWith('/') ? ASSET_BASE_URL : `${ASSET_BASE_URL}/`;
+  const normalizedPath = relativePath.replace(/^\/+/, '');
+  return `${normalizedBase}${normalizedPath}`;
+}
+
 export function resolveAppShellIconPath(assetId: AppShellAssetId, setId = appShellIconSettings.activeSet): string {
-  return `/app-shell/icons/${setId}/${assetFileNames[assetId]}`;
+  return assetUrl(`app-shell/icons/${setId}/${assetFileNames[assetId]}`);
 }
 
 export function resolveAppShellLogoFullPath(setId = appShellIconSettings.activeSet): string {
-  return `/app-shell/logo-full-${setId}.svg`;
+  return assetUrl(`app-shell/logo-full-${setId}.svg`);
 }
 
 export function resolveAppShellLogoMarkPath(setId = appShellIconSettings.activeSet): string {
-  return `/app-shell/logo-mark-${setId}.svg`;
+  return assetUrl(`app-shell/logo-mark-${setId}.svg`);
 }

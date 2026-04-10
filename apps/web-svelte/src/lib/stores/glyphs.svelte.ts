@@ -28,6 +28,7 @@ export const glyphSetOptions: GlyphSetOption[] = [
 
 const GLYPH_SET_STORAGE_KEY = 'glyph_set';
 const CUSTOM_GLYPHS_STORAGE_KEY = 'custom_glyphs';
+const ASSET_BASE_URL = import.meta.env.BASE_URL;
 
 const glyphCatalog: Record<
   string,
@@ -121,7 +122,8 @@ function normalizeGlyphSetId(value: string | null): GlyphSetId {
 
 function glyphPathForSet(setId: GlyphSetId, type: 'planet' | 'zodiac', id: string): string {
   const folder = type === 'planet' ? 'planets' : 'zodiac';
-  return `/glyphs/${setId}/${folder}/${id}.svg`;
+  const normalizedBase = ASSET_BASE_URL.endsWith('/') ? ASSET_BASE_URL : `${ASSET_BASE_URL}/`;
+  return `${normalizedBase}glyphs/${setId}/${folder}/${id}.svg`;
 }
 
 function buildDefaultGlyphs(setId: GlyphSetId): Record<string, GlyphDefinition> {
