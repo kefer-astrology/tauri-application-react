@@ -409,9 +409,20 @@
     if (!chart.dateTime?.trim() || !chart.location?.trim()) return;
     if (chart.computed?.positions && Object.keys(chart.computed.positions).length > 0) return;
     const payload = chartDataToComputePayload(chart);
-    invoke<{ positions?: Record<string, number>; aspects?: unknown[]; chart_id?: string }>('compute_chart_from_data', { chartJson: payload })
+    invoke<{
+      positions?: Record<string, number>;
+      aspects?: unknown[];
+      axes?: { asc: number; desc: number; mc: number; ic: number };
+      house_cusps?: number[];
+      chart_id?: string;
+    }>('compute_chart_from_data', { chartJson: payload })
       .then((result) => {
-        updateChartComputation(chart.id, { positions: result.positions ?? {}, aspects: result.aspects ?? [] });
+        updateChartComputation(chart.id, {
+          positions: result.positions ?? {},
+          aspects: result.aspects ?? [],
+          axes: result.axes,
+          houseCusps: result.house_cusps
+        });
       })
       .catch((err) => {
         console.warn('In-memory compute failed for chart', chart.id, err);
@@ -424,12 +435,23 @@
     if (!chart?.id || !layout.workspacePath) return;
     if (chart.computed?.positions && Object.keys(chart.computed.positions).length > 0) return;
 
-    invoke<{ positions?: Record<string, number>; aspects?: unknown[]; chart_id?: string }>('compute_chart', {
+    invoke<{
+      positions?: Record<string, number>;
+      aspects?: unknown[];
+      axes?: { asc: number; desc: number; mc: number; ic: number };
+      house_cusps?: number[];
+      chart_id?: string;
+    }>('compute_chart', {
       workspacePath: layout.workspacePath,
       chartId: chart.id,
     })
       .then((result) => {
-        updateChartComputation(chart.id, { positions: result.positions ?? {}, aspects: result.aspects ?? [] });
+        updateChartComputation(chart.id, {
+          positions: result.positions ?? {},
+          aspects: result.aspects ?? [],
+          axes: result.axes,
+          houseCusps: result.house_cusps
+        });
       })
       .catch((err) => {
         console.warn('Workspace compute failed for chart', chart.id, err);

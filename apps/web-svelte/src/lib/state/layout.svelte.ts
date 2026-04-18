@@ -23,6 +23,13 @@ export interface ChartData {
   computed?: {
     positions?: Record<string, number>;
     aspects?: any[];
+    axes?: {
+      asc: number;
+      desc: number;
+      mc: number;
+      ic: number;
+    };
+    houseCusps?: number[];
   };
 }
 
@@ -45,7 +52,7 @@ const DEFAULT_WORKSPACE_DEFAULTS: WorkspaceDefaultsState = {
   locationName: 'Prague',
   locationLatitude: 50.0875,
   locationLongitude: 14.4214,
-  engine: null,
+  engine: 'swisseph',
   defaultBodies: [],
   defaultAspects: [],
 };

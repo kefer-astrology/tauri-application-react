@@ -3,13 +3,23 @@
     src,
     class: className = '',
     size = 20,
+    width,
+    height,
+    maskScale = 1,
     title
   }: {
     src: string;
     class?: string;
     size?: number;
+    width?: number;
+    height?: number;
+    maskScale?: number;
     title?: string;
   } = $props();
+
+  const resolvedWidth = $derived(width ?? size);
+  const resolvedHeight = $derived(height ?? size);
+  const resolvedMaskScale = $derived(`${maskScale * 100}%`);
 </script>
 
 <span
@@ -18,5 +28,5 @@
   aria-label={title}
   aria-hidden={title ? undefined : true}
   title={title}
-  style={`width:${size}px;height:${size}px;display:inline-block;background-color:currentColor;mask:url(${src}) center/contain no-repeat;-webkit-mask:url(${src}) center/contain no-repeat;`}
+  style={`width:${resolvedWidth}px;height:${resolvedHeight}px;display:inline-block;background-color:currentColor;mask-image:url(${src});mask-repeat:no-repeat;mask-position:center;mask-size:${resolvedMaskScale} ${resolvedMaskScale};-webkit-mask-image:url(${src});-webkit-mask-repeat:no-repeat;-webkit-mask-position:center;-webkit-mask-size:${resolvedMaskScale} ${resolvedMaskScale};`}
 ></span>

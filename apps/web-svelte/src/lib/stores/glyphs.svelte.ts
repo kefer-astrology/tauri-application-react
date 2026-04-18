@@ -2,7 +2,7 @@
 // - Supports switchable default glyph image sets
 // - Allows per-glyph custom SVG overrides persisted in localStorage
 
-export type GlyphSetId = 'default' | 'classic';
+export type GlyphSetId = 'default' | 'modern';
 
 export interface GlyphDefinition {
   id: string;
@@ -23,7 +23,7 @@ export interface GlyphSetOption {
 
 export const glyphSetOptions: GlyphSetOption[] = [
   { id: 'default', label: 'Default', description: 'Current shared astrology glyph set.' },
-  { id: 'classic', label: 'Classic', description: 'Kerykeion astrology glyph set.' },
+  { id: 'modern', label: 'Modern', description: 'Alternate shared astrology glyph set.' },
 ];
 
 const GLYPH_SET_STORAGE_KEY = 'glyph_set';
@@ -115,8 +115,8 @@ function hasLocalStorage(): boolean {
 }
 
 function normalizeGlyphSetId(value: string | null): GlyphSetId {
-  if (value === 'kerykeion') return 'classic';
-  if (value === 'default' || value === 'classic') return value;
+  if (value === 'kerykeion' || value === 'classic') return 'modern';
+  if (value === 'default' || value === 'modern') return value;
   return 'default';
 }
 

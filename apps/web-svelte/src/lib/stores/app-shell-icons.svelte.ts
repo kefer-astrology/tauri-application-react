@@ -8,17 +8,87 @@ export interface AppShellIconSetOption {
 
 export const APP_SHELL_ICON_SET_STORAGE_KEY = 'app_shell_icon_set';
 const ASSET_BASE_URL = import.meta.env.BASE_URL;
+function appShellAssetSet(setId: AppShellIconSetId): AppShellIconSetId {
+  return setId === 'default' ? 'modern' : 'default';
+}
+export const APP_SHELL_FULL_LOGO_ASPECT_RATIO: Record<AppShellIconSetId, number> = {
+  default: 247 / 77,
+  modern: 220 / 60,
+};
+export const APP_SHELL_MARK_MASK_SCALE = 0.88;
+type AppShellAssetId =
+  | 'menu'
+  | 'new'
+  | 'open'
+  | 'save'
+  | 'export'
+  | 'horoscope'
+  | 'aspects'
+  | 'information'
+  | 'transits'
+  | 'dynamics'
+  | 'revolution'
+  | 'synastry'
+  | 'settings'
+  | 'favorite'
+  | 'theme-sunrise'
+  | 'theme-noon'
+  | 'theme-twilight'
+  | 'theme-midnight';
+
+export const APP_SHELL_ICON_MASK_SCALE: Record<AppShellIconSetId, Record<AppShellAssetId, number>> = {
+  default: {
+    menu: 0.8,
+    new: 1.1,
+    open: 0.86,
+    save: 0.94,
+    export: 0.94,
+    horoscope: 1.08,
+    aspects: 1.12,
+    information: 1.1,
+    transits: 1.05,
+    dynamics: 0.9,
+    revolution: 1.05,
+    synastry: 0.86,
+    settings: 1.1,
+    favorite: 1.12,
+    'theme-sunrise': 0.9,
+    'theme-noon': 0.78,
+    'theme-twilight': 0.9,
+    'theme-midnight': 0.98,
+  },
+  modern: {
+    menu: 0.94,
+    new: 0.8,
+    open: 0.8,
+    save: 0.84,
+    export: 0.84,
+    horoscope: 0.84,
+    aspects: 0.84,
+    information: 0.8,
+    transits: 0.8,
+    dynamics: 0.84,
+    revolution: 0.84,
+    synastry: 0.8,
+    settings: 0.82,
+    favorite: 0.8,
+    'theme-sunrise': 0.8,
+    'theme-noon': 0.8,
+    'theme-twilight': 0.8,
+    'theme-midnight': 0.84,
+  },
+};
 
 export const appShellIconSetOptions: AppShellIconSetOption[] = [
   {
     id: 'default',
     label: 'Default',
-    description: 'Current shared app-shell SVG family.',
+    description: 'Heritage React app-shell icon family.',
   },
   {
     id: 'modern',
     label: 'Modern',
-    description: 'Heritage React app-shell icon family.',
+    description: 'Current shared app-shell SVG family.',
   },
 ];
 
@@ -53,26 +123,6 @@ export function setAppShellIconSet(next: AppShellIconSetId) {
   }
 }
 
-type AppShellAssetId =
-  | 'menu'
-  | 'new'
-  | 'open'
-  | 'save'
-  | 'export'
-  | 'horoscope'
-  | 'aspects'
-  | 'information'
-  | 'transits'
-  | 'dynamics'
-  | 'revolution'
-  | 'synastry'
-  | 'settings'
-  | 'favorite'
-  | 'theme-sunrise'
-  | 'theme-noon'
-  | 'theme-twilight'
-  | 'theme-midnight';
-
 const assetFileNames: Record<AppShellAssetId, string> = {
   menu: 'menu.svg',
   new: 'new.svg',
@@ -101,13 +151,21 @@ function assetUrl(relativePath: string): string {
 }
 
 export function resolveAppShellIconPath(assetId: AppShellAssetId, setId = appShellIconSettings.activeSet): string {
-  return assetUrl(`app-shell/icons/${setId}/${assetFileNames[assetId]}`);
+  return assetUrl(`app-shell/icons/${appShellAssetSet(setId)}/${assetFileNames[assetId]}`);
+}
+
+export function resolveAppShellIconMaskScale(assetId: AppShellAssetId, setId = appShellIconSettings.activeSet): number {
+  return APP_SHELL_ICON_MASK_SCALE[appShellAssetSet(setId)][assetId];
 }
 
 export function resolveAppShellLogoFullPath(setId = appShellIconSettings.activeSet): string {
-  return assetUrl(`app-shell/logo-full-${setId}.svg`);
+  return assetUrl(`app-shell/logo-full-${appShellAssetSet(setId)}.svg`);
 }
 
 export function resolveAppShellLogoMarkPath(setId = appShellIconSettings.activeSet): string {
-  return assetUrl(`app-shell/logo-mark-${setId}.svg`);
+  return assetUrl(`app-shell/logo-mark-${appShellAssetSet(setId)}.svg`);
+}
+
+export function resolveAppShellLogoFullWidth(height: number, setId = appShellIconSettings.activeSet): number {
+  return Math.round(height * APP_SHELL_FULL_LOGO_ASPECT_RATIO[appShellAssetSet(setId)]);
 }

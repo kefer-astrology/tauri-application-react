@@ -4,23 +4,24 @@
   import MiddleContent from '$lib/components/MiddleContent.svelte';
   import BottomTabs from '$lib/components/BottomTabs.svelte';
   import OpenExportDialog from '$lib/components/OpenExportDialog.svelte';
+  import OpenWorkspaceView from '$lib/components/OpenWorkspaceView.svelte';
+  import ExportWorkspaceView from '$lib/components/ExportWorkspaceView.svelte';
+  import SettingsView from '$lib/components/SettingsView.svelte';
   import TimeNavigationPanel from '$lib/components/TimeNavigationPanel.svelte';
-  import GlyphManager from '$lib/components/GlyphManager.svelte';
-  import { layout, type Mode, showOpenExportOverlay, loadChartsFromWorkspace, updateChartComputation, getSelectedChart, chartDataToComputePayload, type ChartData, setMode, setWorkspaceDefaults } from '$lib/state/layout';
+  import { layout, type Mode, showOpenExportOverlay, getSelectedChart, chartDataToComputePayload, type ChartData, setMode } from '$lib/state/layout';
   import { invoke } from '@tauri-apps/api/core';
-  import { reapplyCurrentPreset, preset, presets, applyPreset, getElementColors, setElementColor, type ElementColorKey } from '$lib/state/theme.svelte';
+  import { reapplyCurrentPreset } from '$lib/state/theme.svelte';
   import { timeNavigation } from '$lib/stores/timeNavigation.svelte';
   import { t, i18n, setLang } from '$lib/i18n/index.svelte';
-  import * as Breadcrumb from '$lib/components/ui/breadcrumb/index.js';
   import * as Accordion from '$lib/components/ui/accordion/index.js';
   import * as Select from '$lib/components/ui/select/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import { Textarea } from '$lib/components/ui/textarea/index.js';
-  import { getGlyphContent, signIdFromLongitude, glyphSettings, glyphSetOptions, setGlyphSet, hardResetGlyphStorage, type GlyphSetId } from '$lib/stores/glyphs.svelte';
-  import { appShellIconSetOptions, appShellIconSettings, setAppShellIconSet, type AppShellIconSetId } from '$lib/stores/app-shell-icons.svelte';
+  import { getGlyphContent, signIdFromLongitude } from '$lib/stores/glyphs.svelte';
   import BodySelector from '$lib/components/BodySelector.svelte';
   import PanelMenu from '$lib/components/PanelMenu.svelte';
+  import OptionListMenu from '$lib/components/OptionListMenu.svelte';
   import * as Dialog from '$lib/components/ui/dialog/index.js';
   import { onMount } from 'svelte';
   import { stepForward, stepBackward } from '$lib/stores/timeNavigation.svelte';
@@ -53,7 +54,6 @@
   
   // Open Chart mode state
   let openMode = $state<'my_radixes' | 'database'>('my_radixes');
-  let searchQuery = $state('');
 
   // Keep new radix type always selected (PanelMenu can clear on second click)
   $effect(() => {
@@ -106,11 +106,7 @@
     { name: 'Test Chart', chartType: 'HORARY', dateTime: '2024-01-01 12:00', place: 'London', tags: 'test' }
   ]);
   
-  // Export mode state
   let exportType = $state<'print' | 'pdf' | 'png'>('print');
-  let exportIncludeLocation = $state(true);
-  let exportIncludeAspects = $state(true);
-  let exportIncludeInfo = $state(true);
   
   // Info mode state
   let selectedInfoItem = $state<string | undefined>(undefined);
@@ -139,18 +135,10 @@
   
   // Settings mode state
   let selectedSettingsSection = $state<string | undefined>('jazyk');
-  let settingsChanged = $state(false);
 
   // Dynamic / Revolution mode state (left menu selection)
   let selectedDynamicSection = $state<string | undefined>(undefined);
   let selectedRevolutionSection = $state<string | undefined>(undefined);
-  // Element colors (radix chart) – synced from theme store when opening Vzhled
-  let elementColors = $state<Record<ElementColorKey, string>>({
-    'element-fire': '#5a5a64',
-    'element-earth': '#4a3f35',
-    'element-air': '#1e3d38',
-    'element-water': '#5c2a2a',
-  });
   
   // Language and preset state for settings
   const languages = $derived(
@@ -187,65 +175,10 @@
     languages.find((l) => l.value === langValue)?.label ?? t('select_language', {}, 'Select language')
   );
   
-  const presetItems = presets.map((p) => ({ value: p.id, label: p.name }));
-  let presetValue = $state(String(preset.id));
-  const presetTriggerContent = $derived(
-    presetItems.find((p) => p.value === presetValue)?.label ?? t('select_preset', {}, 'Select preset')
-  );
-  let glyphSetValue = $state(String(glyphSettings.activeSet));
-  const glyphSetTriggerContent = $derived(
-    glyphSetOptions.find((s) => s.id === glyphSetValue)?.label ?? t('select_glyph_set', {}, 'Select glyph set')
-  );
-  let appShellIconSetValue = $state(String(appShellIconSettings.activeSet));
-  const appShellIconSetTriggerContent = $derived(
-    appShellIconSetOptions.find((s) => s.id === appShellIconSetValue)?.label ?? 'Select app shell icon set'
-  );
-  
   // Sync language changes
   $effect(() => {
     if (langValue !== i18n.lang) {
       setLang(langValue as any);
-      settingsChanged = true;
-    }
-  });
-  
-  // Sync preset changes
-  $effect(() => {
-    if (presetValue !== String(preset.id)) {
-      applyPreset(presetValue);
-      settingsChanged = true;
-    }
-  });
-
-  $effect(() => {
-    if (glyphSetValue !== glyphSettings.activeSet) {
-      glyphSetValue = glyphSettings.activeSet;
-    }
-  });
-
-  $effect(() => {
-    if (glyphSetValue !== glyphSettings.activeSet && glyphSetOptions.some((s) => s.id === glyphSetValue)) {
-      setGlyphSet(glyphSetValue as GlyphSetId);
-      settingsChanged = true;
-    }
-  });
-
-  $effect(() => {
-    if (appShellIconSetValue !== appShellIconSettings.activeSet) {
-      appShellIconSetValue = appShellIconSettings.activeSet;
-    }
-  });
-
-  $effect(() => {
-    if (appShellIconSetValue !== appShellIconSettings.activeSet && appShellIconSetOptions.some((s) => s.id === appShellIconSetValue)) {
-      setAppShellIconSet(appShellIconSetValue as AppShellIconSetId);
-      settingsChanged = true;
-    }
-  });
-
-  $effect(() => {
-    if (selectedSettingsSection === 'vzhled') {
-      elementColors = { ...getElementColors() };
     }
   });
 
@@ -362,7 +295,15 @@
     return null;
   }
 
-  function getHouseCusps(computed: Record<string, unknown>): number[] {
+  function getHouseCusps(
+    computed: Record<string, unknown>,
+    explicitCusps?: number[] | null
+  ): number[] {
+    if (Array.isArray(explicitCusps) && explicitCusps.length === 12) {
+      return explicitCusps
+        .map((value) => (typeof value === 'number' ? normalizeLongitude(value) : null))
+        .filter((value): value is number => value != null);
+    }
     const cusps: number[] = [];
     for (let i = 1; i <= 12; i += 1) {
       const key = `house_${i}`;
@@ -408,7 +349,7 @@
 
     const result: Record<string, { longitude: number; signName: string; house: number; positionInHouse: number }> = {};
     const computedRecord = computed as Record<string, unknown>;
-    const cusps = getHouseCusps(computedRecord);
+    const cusps = getHouseCusps(computedRecord, selectedChart?.computed?.houseCusps);
     for (const [name, position] of Object.entries(computedRecord)) {
       if (/^house_\d+$/i.test(name)) continue;
       const longitude = toLongitude(position);
@@ -709,72 +650,14 @@
                   { value: 'my_radixes', label: t('open_mode_my_radixes', {}, 'My Radixes') },
                   { value: 'database', label: t('open_mode_database', {}, 'Persons Database') }
                 ]}
-                <div class="space-y-3">
-                  <Breadcrumb.Root>
-                    <Breadcrumb.List class="flex flex-col gap-1.5">
-                      {#each openModes as modeItem}
-                        <Breadcrumb.Item>
-                          {#if openMode === modeItem.value}
-                            <Breadcrumb.Page 
-                              class="px-2 py-1.5 text-sm font-semibold underline underline-offset-4 text-panel-foreground"
-                            >
-                              {modeItem.label}
-                            </Breadcrumb.Page>
-                          {:else}
-                            <Breadcrumb.Link>
-                              {#snippet child({ props })}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  class={`${props.class ?? ''} px-2 py-1.5 text-sm text-panel-foreground/80 bg-transparent hover:bg-transparent hover:underline transition-colors w-full text-left rounded-md`}
-                                  onclick={() => openMode = modeItem.value as typeof openMode}
-                                >
-                                  {modeItem.label}
-                                </Button>
-                              {/snippet}
-                            </Breadcrumb.Link>
-                          {/if}
-                        </Breadcrumb.Item>
-                      {/each}
-                    </Breadcrumb.List>
-                  </Breadcrumb.Root>
-                </div>
+                <OptionListMenu items={openModes} bind:selectedValue={openMode} />
               {:else if mode === 'export'}
                 {@const exportTypes = [
                   { value: 'print', label: t('export_type_print', {}, 'Print') },
                   { value: 'pdf', label: t('export_type_pdf', {}, 'Export PDF') },
                   { value: 'png', label: t('export_type_png', {}, 'Export PNG') }
                 ]}
-                <div class="space-y-3">
-                  <Breadcrumb.Root>
-                    <Breadcrumb.List class="flex flex-col gap-1.5">
-                      {#each exportTypes as typeItem}
-                        <Breadcrumb.Item>
-                          {#if exportType === typeItem.value}
-                            <Breadcrumb.Page 
-                              class="px-2 py-1.5 text-sm font-semibold underline underline-offset-4 text-panel-foreground"
-                            >
-                              {typeItem.label}
-                            </Breadcrumb.Page>
-                          {:else}
-                            <Breadcrumb.Link>
-                              {#snippet child({ props })}
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  class={`${props.class ?? ''} px-2 py-1.5 text-sm text-panel-foreground/80 bg-transparent hover:bg-transparent hover:underline transition-colors w-full text-left rounded-md`}
-                                  onclick={() => exportType = typeItem.value as typeof exportType}
-                                >
-                                  {typeItem.label}
-                                </Button>
-                              {/snippet}
-                            </Breadcrumb.Link>
-                          {/if}
-                        </Breadcrumb.Item>
-                      {/each}
-                    </Breadcrumb.List>
-                  </Breadcrumb.Root>
-                </div>
+                <OptionListMenu items={exportTypes} bind:selectedValue={exportType} />
               {:else if mode === 'info'}
                 <PanelMenu items={infoItems} bind:selectedId={selectedInfoItem} />
               {:else if mode === 'settings'}
@@ -1004,585 +887,16 @@
             </form>
           </div>
         {:else if mode === 'open'}
-          <div class="h-full w-full rounded-md border bg-card text-card-foreground shadow-sm p-4 flex flex-col overflow-hidden">
-            {#if openMode === 'my_radixes'}
-              <!-- My Radixes: Table view -->
-              <div class="flex flex-col h-full">
-                <!-- Top toolbar: Open buttons + Search -->
-                <div class="flex items-center gap-2 mb-4">
-                  <Button 
-                    class="px-4 py-2"
-                    onclick={async () => {
-                      try {
-                        const folderPath = await invoke<string | null>('open_folder_dialog');
-                        if (folderPath) {
-                          const workspace = await invoke<{
-                            path: string;
-                            owner: string;
-                            active_model: string | null;
-                            charts: Array<{
-                              id: string;
-                              name: string;
-                              chart_type: string;
-                              date_time: string;
-                              location: string;
-                              tags: string[];
-                            }>;
-                          }>('load_workspace', { workspacePath: folderPath });
-
-                          try {
-                            const workspaceDefaults = await invoke<{
-                              default_house_system?: string | null;
-                              default_timezone?: string | null;
-                              default_location_name?: string | null;
-                              default_location_latitude?: number | null;
-                              default_location_longitude?: number | null;
-                              default_engine?: string | null;
-                              default_bodies?: string[] | null;
-                              default_aspects?: string[] | null;
-                            }>('get_workspace_defaults', { workspacePath: folderPath });
-
-                            setWorkspaceDefaults({
-                              houseSystem: workspaceDefaults.default_house_system ?? undefined,
-                              timezone: workspaceDefaults.default_timezone ?? undefined,
-                              locationName: workspaceDefaults.default_location_name ?? undefined,
-                              locationLatitude: workspaceDefaults.default_location_latitude ?? undefined,
-                              locationLongitude: workspaceDefaults.default_location_longitude ?? undefined,
-                              engine: workspaceDefaults.default_engine ?? undefined,
-                              defaultBodies: workspaceDefaults.default_bodies ?? undefined,
-                              defaultAspects: workspaceDefaults.default_aspects ?? undefined,
-                            });
-                          } catch (defaultsErr) {
-                            console.warn('Failed to load workspace defaults, using current defaults:', defaultsErr);
-                          }
-                          
-                          // Load full chart data to get all settings
-                          const charts: ChartData[] = [];
-                          for (const ch of workspace.charts) {
-                            // Get full chart data from Rust
-                            try {
-                              const fullChart = await invoke<{
-                                id: string;
-                                subject: {
-                                  id: string;
-                                  name: string;
-                                  event_time: string | null;
-                                  location: {
-                                    name: string;
-                                    latitude: number;
-                                    longitude: number;
-                                    timezone: string;
-                                  };
-                                };
-                                config: {
-                                  mode: string;
-                                  house_system: string | null;
-                                  zodiac_type: string;
-                                  engine: string | null;
-                                  model: string | null;
-                                  override_ephemeris: string | null;
-                                };
-                                tags: string[];
-                              }>('get_chart_details', {
-                                workspacePath: folderPath,
-                                chartId: ch.id
-                              });
-                              
-                              charts.push({
-                                id: fullChart.id,
-                                name: fullChart.subject.name,
-                                chartType: fullChart.config.mode,
-                                dateTime: fullChart.subject.event_time || '',
-                                location: fullChart.subject.location.name,
-                                latitude: fullChart.subject.location.latitude,
-                                longitude: fullChart.subject.location.longitude,
-                                timezone: fullChart.subject.location.timezone,
-                                houseSystem: fullChart.config.house_system,
-                                zodiacType: fullChart.config.zodiac_type,
-                                engine: fullChart.config.engine,
-                                model: fullChart.config.model,
-                                overrideEphemeris: fullChart.config.override_ephemeris,
-                                tags: fullChart.tags,
-                              });
-                            } catch (err) {
-                              console.error(`Failed to load full chart data for ${ch.id}:`, err);
-                              // Fallback to summary data
-                              charts.push({
-                                id: ch.id,
-                                name: ch.name,
-                                chartType: ch.chart_type,
-                                dateTime: ch.date_time,
-                                location: ch.location,
-                                tags: ch.tags,
-                              });
-                            }
-                          }
-                          
-                          loadChartsFromWorkspace(charts);
-                          layout.workspacePath = workspace.path;
-                          await invoke<string>('init_storage', { workspacePath: workspace.path });
-                          
-                          // Trigger computation for all charts
-                          for (const chart of charts) {
-                            try {
-                              const result = await invoke<{
-                                positions: Record<string, number>;
-                                aspects: any[];
-                                chart_id: string;
-                              }>('compute_chart', {
-                                workspacePath: workspace.path,
-                                chartId: chart.id
-                              });
-                              
-                              updateChartComputation(chart.id, {
-                                positions: result.positions,
-                                aspects: result.aspects
-                              });
-                            } catch (err) {
-                              console.error(`Failed to compute chart ${chart.id}:`, err);
-                            }
-                          }
-                        }
-                      } catch (err) {
-                        console.error('Failed to load workspace:', err);
-                      }
-                    }}
-                  >
-                    {t('open_workspace', {}, 'Open Workspace')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    class="px-4 py-2"
-                    onclick={async () => {
-                      try {
-                        if (layout.contexts.length === 0) {
-                          console.warn('No charts to save');
-                          return;
-                        }
-                        let folderPath: string | null = layout.workspacePath;
-                        if (!folderPath) {
-                          folderPath = await invoke<string | null>('open_folder_dialog');
-                        }
-                        if (folderPath) {
-                          const chartsPayload = layout.contexts.map((c) => chartDataToComputePayload(c));
-                          await invoke<string>('save_workspace', {
-                            workspacePath: folderPath,
-                            owner: 'User',
-                            charts: chartsPayload,
-                          });
-                          await invoke<string>('init_storage', { workspacePath: folderPath });
-                          layout.workspacePath = folderPath;
-                        }
-                      } catch (err) {
-                        console.error('Failed to save workspace:', err);
-                      }
-                    }}
-                  >
-                    {t('save_workspace', {}, 'Save Workspace')}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    class="px-4 py-2"
-                    onclick={async () => {
-                      // TODO: Implement single radix file opening
-                      console.log('Open Radix - to be implemented');
-                    }}
-                  >
-                    {t('open_radix', {}, 'Open Radix')}
-                  </Button>
-                  <Input
-                    type="text"
-                    class="flex-1 max-w-md"
-                    bind:value={searchQuery}
-                    placeholder={t('search_fulltext', {}, 'Fulltext search')}
-                  />
-                </div>
-                
-                <!-- Table -->
-                <div class="flex-1 overflow-auto">
-                  <table class="w-full border-collapse text-sm">
-                    <thead class="sticky top-0 bg-background border-b">
-                      <tr>
-                        <th class="text-left p-2 font-semibold opacity-85">{t('table_name', {}, 'Name')}</th>
-                        <th class="text-left p-2 font-semibold opacity-85">{t('table_chart_type', {}, 'Chart Type')}</th>
-                        <th class="text-left p-2 font-semibold opacity-85">{t('table_date_time', {}, 'Date & Time')}</th>
-                        <th class="text-left p-2 font-semibold opacity-85">{t('table_place', {}, 'Place')}</th>
-                        <th class="text-left p-2 font-semibold opacity-85">{t('table_tags', {}, 'Tags')}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {#each layout.contexts as chart}
-                        <tr 
-                          class="border-b hover:bg-accent/50 transition-colors cursor-pointer"
-                          onclick={() => {
-                            layout.selectedContext = chart.id;
-                            layout.selectedTab = 'Radix';
-                            setMode('radix_view');
-                          }}
-                        >
-                          <td class="p-2">{chart.name}</td>
-                          <td class="p-2 opacity-75">
-                            {chart.chartType === 'NATAL' ? t('new_type_radix', {}, 'Radix')
-                              : chart.chartType === 'EVENT' ? t('new_type_event', {}, 'Event')
-                              : chart.chartType === 'HORARY' ? t('new_type_horary', {}, 'Horary')
-                              : chart.chartType}
-                          </td>
-                          <td class="p-2 opacity-75">{chart.dateTime}</td>
-                          <td class="p-2 opacity-75">{chart.location}</td>
-                          <td class="p-2 opacity-75">{chart.tags.join(', ')}</td>
-                        </tr>
-                      {/each}
-                      {#if layout.contexts.length === 0}
-                        <tr>
-                          <td colspan="5" class="p-4 text-center opacity-60">
-                            {t('no_charts_loaded', {}, 'No charts loaded. Click "Open Workspace" to load charts.')}
-                          </td>
-                        </tr>
-                      {/if}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            {:else}
-              <!-- Persons Database: Placeholder -->
-              <div class="flex-1 flex items-center justify-center">
-                <div class="text-center space-y-2 opacity-60">
-                  <p class="text-lg font-medium">{t('open_mode_database', {}, 'Persons Database')}</p>
-                  <p class="text-sm">{t('database_placeholder', {}, 'Custom layout for fetching specific persons')}</p>
-                </div>
-              </div>
-            {/if}
-          </div>
+          <OpenWorkspaceView bind:openMode />
         {:else if mode === 'export'}
-          <div class="h-full w-full rounded-md border bg-card text-card-foreground shadow-sm p-4 flex flex-col overflow-y-auto">
-            <h2 class="text-lg font-semibold mb-4">{t('export', {}, 'Export')}</h2>
-            <div class="space-y-4 w-full max-w-2xl">
-              <div class="text-sm font-medium opacity-85 mb-3">
-                {t('export_include', {}, 'Include in export')}
-              </div>
-              
-              <!-- Include Options -->
-              <div class="space-y-3">
-                <label class="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={exportIncludeLocation}
-                    onchange={(event) => {
-                      exportIncludeLocation = (event.currentTarget as HTMLInputElement).checked;
-                    }}
-                    class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                  />
-                  <span class="text-sm opacity-85 group-hover:opacity-100 transition-opacity">
-                    {t('export_include_location', {}, 'Location')}
-                  </span>
-                </label>
-                
-                <label class="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={exportIncludeAspects}
-                    onchange={(event) => {
-                      exportIncludeAspects = (event.currentTarget as HTMLInputElement).checked;
-                    }}
-                    class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                  />
-                  <span class="text-sm opacity-85 group-hover:opacity-100 transition-opacity">
-                    {t('export_include_aspects', {}, 'Aspects')}
-                  </span>
-                </label>
-                
-                <label class="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={exportIncludeInfo}
-                    onchange={(event) => {
-                      exportIncludeInfo = (event.currentTarget as HTMLInputElement).checked;
-                    }}
-                    class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                  />
-                  <span class="text-sm opacity-85 group-hover:opacity-100 transition-opacity">
-                    {t('export_include_info', {}, 'Info')}
-                  </span>
-                </label>
-              </div>
-              
-              <!-- Export Button -->
-              <div class="pt-4 border-t mt-6">
-                <Button 
-                  class="w-full sm:w-auto px-6 py-2"
-                  onclick={() => showOpenExportOverlay(true)}
-                >
-                  {t('export', {}, 'Export')}
-                </Button>
-              </div>
-            </div>
-          </div>
+          <ExportWorkspaceView bind:exportType />
         {:else if mode === 'info' || mode === 'dynamic' || mode === 'revolution' || mode === 'favorite'}
           <div class="h-full w-full rounded-md border bg-card text-card-foreground shadow-sm p-4 flex flex-col items-start justify-start">
             <h2 class="text-lg font-semibold mb-3">{t(mode, {}, mode.charAt(0).toUpperCase() + mode.slice(1))}</h2>
             <div class="text-sm opacity-85">{t('mode_view_placeholder', { mode: t(mode, {}, mode) }, 'Content for {mode} view will be displayed here.')}</div>
           </div>
         {:else if mode === 'settings'}
-          <div class="h-full min-w-0 rounded-md border bg-card text-card-foreground shadow-sm p-4 flex flex-col overflow-hidden">
-            <div class="flex-1 min-h-0 overflow-y-auto">
-              {#if selectedSettingsSection === 'jazyk'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_jazyk', {}, 'Language')}</h3>
-                <div class="space-y-4 max-w-md">
-                  <div class="space-y-2">
-                    <label class="block text-sm font-medium opacity-90" for="settings-lang">{t('language', {}, 'Language')}</label>
-                    <div class="min-w-[220px]">
-                      <Select.Root type="single" name="appLanguage" bind:value={langValue}>
-                        <Select.Trigger class="w-[220px]" id="settings-lang">
-                          {langTriggerContent}
-                        </Select.Trigger>
-                        <Select.Content>
-                          <Select.Group>
-                            <Select.Label>{t('label_languages', {}, 'Languages')}</Select.Label>
-                            {#each languages as lang (lang.value)}
-                              <Select.Item value={lang.value} label={lang.label}>
-                                {lang.label}
-                              </Select.Item>
-                            {/each}
-                          </Select.Group>
-                        </Select.Content>
-                      </Select.Root>
-                    </div>
-                  </div>
-                </div>
-              {:else if selectedSettingsSection === 'lokace'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_lokace', {}, 'Location')}</h3>
-                <div class="space-y-4 max-w-md">
-                  <div class="space-y-2">
-                    <div class="block text-sm font-medium opacity-90">{t('default_location', {}, 'Default location')}</div>
-                    <Input
-                      type="text"
-                      class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
-                      placeholder={t('placeholder_default_location', {}, 'Enter default location...')}
-                    />
-                  </div>
-                  <div class="space-y-2">
-                    <div class="block text-sm font-medium opacity-90">{t('current_info_latitude', {}, 'Latitude')}</div>
-                    <Input
-                      type="text"
-                      class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
-                      placeholder={t('placeholder_latitude', {}, 'Latitude')}
-                    />
-                  </div>
-                  <div class="space-y-2">
-                    <div class="block text-sm font-medium opacity-90">{t('current_info_longitude', {}, 'Longitude')}</div>
-                    <Input
-                      type="text"
-                      class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
-                      placeholder={t('placeholder_longitude', {}, 'Longitude')}
-                    />
-                  </div>
-                </div>
-              {:else if selectedSettingsSection === 'system_domu'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_system_domu', {}, 'House system')}</h3>
-                <div class="space-y-4 max-w-md">
-                  <div class="space-y-2">
-                    <div class="block text-sm font-medium opacity-90">{t('house_system', {}, 'House System')}</div>
-                    <Select.Root type="single" value="Placidus">
-                      <Select.Trigger class="w-full h-9 px-3">Placidus</Select.Trigger>
-                      <Select.Content>
-                        <Select.Group>
-                          <Select.Item value="Placidus" label="Placidus">Placidus</Select.Item>
-                          <Select.Item value="Whole Sign" label="Whole Sign">Whole Sign</Select.Item>
-                          <Select.Item value="Campanus" label="Campanus">Campanus</Select.Item>
-                          <Select.Item value="Koch" label="Koch">Koch</Select.Item>
-                          <Select.Item value="Equal" label="Equal">Equal</Select.Item>
-                          <Select.Item value="Regiomontanus" label="Regiomontanus">Regiomontanus</Select.Item>
-                          <Select.Item value="Vehlow" label="Vehlow">Vehlow</Select.Item>
-                          <Select.Item value="Porphyry" label="Porphyry">Porphyry</Select.Item>
-                          <Select.Item value="Alcabitius" label="Alcabitius">Alcabitius</Select.Item>
-                        </Select.Group>
-                      </Select.Content>
-                    </Select.Root>
-                  </div>
-                </div>
-              {:else if selectedSettingsSection === 'nastaveni_aspektu'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_nastaveni_aspektu', {}, 'Aspect settings')}</h3>
-                <div class="space-y-4 max-w-md">
-                  <div class="space-y-2">
-                    <div class="block text-sm font-medium opacity-90">{t('default_aspects', {}, 'Default aspects')}</div>
-                    <div class="space-y-2">
-                      {#each [
-                        { id: 'conjunction', labelKey: 'aspect_conjunction', defaultOrb: 8 },
-                        { id: 'sextile', labelKey: 'aspect_sextile', defaultOrb: 6 },
-                        { id: 'square', labelKey: 'aspect_square', defaultOrb: 8 },
-                        { id: 'trine', labelKey: 'aspect_trine', defaultOrb: 8 },
-                        { id: 'quincunx', labelKey: 'aspect_quincunx', defaultOrb: 3 },
-                        { id: 'opposition', labelKey: 'aspect_opposition', defaultOrb: 8 }
-                      ] as aspect}
-                        <div class="flex items-center justify-between">
-                          <label class="flex items-center gap-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
-                              checked={true}
-                            />
-                            <span class="text-sm">{t(aspect.labelKey, {}, aspect.labelKey)}</span>
-                          </label>
-                          <Input
-                            type="number"
-                            class="w-20 h-8 px-2 rounded-md bg-background text-foreground border text-xs"
-                            value={aspect.defaultOrb}
-                            min="0"
-                            max="30"
-                            step="0.5"
-                          />
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                </div>
-              {:else if selectedSettingsSection === 'vzhled'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_vzhled', {}, 'Appearance')}</h3>
-                <div class="flex flex-wrap items-start gap-6">
-                  <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
-                    <label class="block text-sm font-medium opacity-90" for="settings-preset">Color preset</label>
-                    <div class="min-w-[220px]">
-                      <Select.Root type="single" name="appPreset" bind:value={presetValue}>
-                        <Select.Trigger class="w-[220px]" id="settings-preset">
-                          {presetTriggerContent}
-                        </Select.Trigger>
-                        <Select.Content>
-                          <Select.Group>
-                            <Select.Label>Themes</Select.Label>
-                            {#each presetItems as item (item.value)}
-                              <Select.Item value={item.value} label={item.label}>
-                                {item.label}
-                              </Select.Item>
-                            {/each}
-                          </Select.Group>
-                        </Select.Content>
-                      </Select.Root>
-                    </div>
-                  </div>
-                  <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
-                    <label class="block text-sm font-medium opacity-90" for="settings-glyph-set">Glyph image set</label>
-                    <div class="min-w-[220px]">
-                      <Select.Root type="single" name="glyphSet" bind:value={glyphSetValue}>
-                        <Select.Trigger class="w-[220px]" id="settings-glyph-set">
-                          {glyphSetTriggerContent}
-                        </Select.Trigger>
-                        <Select.Content>
-                          <Select.Group>
-                            <Select.Label>Image sets</Select.Label>
-                            {#each glyphSetOptions as setOpt (setOpt.id)}
-                              <Select.Item value={setOpt.id} label={setOpt.label}>
-                                {setOpt.label}
-                              </Select.Item>
-                            {/each}
-                          </Select.Group>
-                        </Select.Content>
-                      </Select.Root>
-                    </div>
-                    <div class="text-xs text-muted-foreground max-w-[260px]">
-                      {glyphSetOptions.find((s) => s.id === glyphSetValue)?.description}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      class="mt-2"
-                      onclick={() => {
-                        hardResetGlyphStorage();
-                        settingsChanged = true;
-                      }}
-                    >
-                      Reset glyph cache
-                    </Button>
-                  </div>
-                  <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
-                    <label class="block text-sm font-medium opacity-90" for="settings-app-shell-set">App shell icon set</label>
-                    <div class="min-w-[220px]">
-                      <Select.Root type="single" name="appShellIconSet" bind:value={appShellIconSetValue}>
-                        <Select.Trigger class="w-[220px]" id="settings-app-shell-set">
-                          {appShellIconSetTriggerContent}
-                        </Select.Trigger>
-                        <Select.Content>
-                          <Select.Group>
-                            <Select.Label>Icon sets</Select.Label>
-                            {#each appShellIconSetOptions as setOpt (setOpt.id)}
-                              <Select.Item value={setOpt.id} label={setOpt.label}>
-                                {setOpt.label}
-                              </Select.Item>
-                            {/each}
-                          </Select.Group>
-                        </Select.Content>
-                      </Select.Root>
-                    </div>
-                    <div class="text-xs text-muted-foreground max-w-[260px]">
-                      {appShellIconSetOptions.find((s) => s.id === appShellIconSetValue)?.description}
-                    </div>
-                  </div>
-                  <div class="space-y-2 w-full sm:w-auto sm:min-w-[240px]">
-                    <div class="block text-sm font-medium opacity-90">Radix chart – element colors</div>
-                    <p class="text-xs text-muted-foreground max-w-[260px]">Water, Air, Earth, Fire (zodiac/house ring)</p>
-                    <div class="flex flex-wrap gap-3 items-center">
-                      {#each [
-                        { key: 'element-fire' as ElementColorKey, labelKey: 'element_fire' },
-                        { key: 'element-earth' as ElementColorKey, labelKey: 'element_earth' },
-                        { key: 'element-air' as ElementColorKey, labelKey: 'element_air' },
-                        { key: 'element-water' as ElementColorKey, labelKey: 'element_water' }
-                      ] as elem}
-                        <div class="flex items-center gap-2">
-                          <label class="text-xs opacity-90" for={`element-color-${elem.key}`}>{t(elem.labelKey, {}, elem.labelKey)}</label>
-                          <input
-                            id={`element-color-${elem.key}`}
-                            type="color"
-                            value={elementColors[elem.key]}
-                            oninput={(e) => {
-                              const v = (e.currentTarget as HTMLInputElement).value;
-                              elementColors = { ...elementColors, [elem.key]: v };
-                              setElementColor(elem.key, v);
-                              settingsChanged = true;
-                            }}
-                            class="w-9 h-9 rounded border border-border cursor-pointer"
-                            aria-label={t(elem.labelKey, {}, elem.labelKey)}
-                          />
-                        </div>
-                      {/each}
-                    </div>
-                  </div>
-                  <div class="w-full min-w-0 flex-1 mt-4 sm:mt-0">
-                    <GlyphManager embedded={true} />
-                  </div>
-                </div>
-              {:else if selectedSettingsSection === 'manual'}
-                <h3 class="text-sm font-semibold mb-4">{t('section_manual', {}, 'Manual')}</h3>
-                <div class="space-y-4 max-w-2xl">
-                  <div class="prose prose-sm dark:prose-invert max-w-none">
-                    <p class="text-sm opacity-85">
-                      Dokumentace a nápověda k aplikaci bude zobrazena zde.
-                    </p>
-                  </div>
-                </div>
-              {/if}
-            </div>
-            <!-- Cancel/Confirm buttons at bottom -->
-            <div class="pt-4 mt-4 border-t border-border/60 flex-shrink-0 flex gap-2">
-              <Button 
-                variant="outline"
-                class="flex-1"
-                onclick={() => {
-                  // TODO: Reset settings to original values
-                  settingsChanged = false;
-                }}
-              >
-                {t('cancel', {}, 'Cancel')}
-              </Button>
-              <Button 
-                class="flex-1"
-                onclick={() => {
-                  // TODO: Save settings
-                  settingsChanged = false;
-                }}
-              >
-                {t('confirm', {}, 'Confirm')}
-              </Button>
-            </div>
-          </div>
+          <SettingsView section={selectedSettingsSection} />
         {:else}
           <MiddleContent />
         {/if}

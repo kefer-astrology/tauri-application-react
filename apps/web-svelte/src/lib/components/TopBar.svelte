@@ -4,7 +4,12 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import * as Tooltip from '$lib/components/ui/tooltip/index.js';
   import SharedSvgIcon from '$lib/components/SharedSvgIcon.svelte';
-  import { resolveAppShellIconPath, resolveAppShellLogoFullPath } from '$lib/stores/app-shell-icons.svelte';
+  import {
+    resolveAppShellIconPath,
+    resolveAppShellIconMaskScale,
+    resolveAppShellLogoFullPath,
+    resolveAppShellLogoFullWidth
+  } from '$lib/stores/app-shell-icons.svelte';
   import { scale } from 'svelte/transition';
   import { quintOut } from 'svelte/easing';
 
@@ -76,6 +81,28 @@
     return resolveAppShellIconPath(appShellId);
   }
 
+  function iconMaskScaleFor(id: ActionId) {
+    const appShellIdMap = {
+      new: 'new',
+      load: 'open',
+      save: 'save',
+      export: 'export',
+      radix: 'horoscope',
+      aspects: 'aspects',
+      info: 'information',
+      transits: 'transits',
+      dynamic: 'dynamics',
+      revolution: 'revolution',
+      favorite: 'favorite',
+      settings: 'settings'
+    } as const;
+
+    const appShellId = appShellIdMap[id as keyof typeof appShellIdMap] ?? 'horoscope';
+    return resolveAppShellIconMaskScale(appShellId);
+  }
+
+  const logoHeight = 28;
+
   function isActive(id: ActionId): boolean {
     const mode = layout.mode;
     switch (id) {
@@ -99,7 +126,14 @@
 <div class="w-full h-full grid grid-cols-12 items-center px-2 gap-0 overflow-hidden">
   <!-- Logo: columns 1-3 -->
   <div class="col-span-3 h-full flex items-center justify-center py-3">
-    <SharedSvgIcon src={resolveAppShellLogoFullPath()} class="block h-3/4 w-full text-white" size={148} title="Kefer" />
+    <SharedSvgIcon
+      src={resolveAppShellLogoFullPath()}
+      class="block text-white"
+      width={resolveAppShellLogoFullWidth(logoHeight)}
+      height={logoHeight}
+      maskScale={0.98}
+      title="Kefer"
+    />
   </div>
 
   <!-- Space: column 4 -->
@@ -121,7 +155,13 @@
                     aria-label={t(labelKeyFor(a.id))}
                     onclick={() => a.onClick()}
                   >
-                    <SharedSvgIcon src={iconFor(a.id)} class="block !h-full !w-full text-white" size={28} title={t(labelKeyFor(a.id))} />
+                    <SharedSvgIcon
+                      src={iconFor(a.id)}
+                      class="block !h-full !w-full text-white"
+                      size={28}
+                      maskScale={iconMaskScaleFor(a.id)}
+                      title={t(labelKeyFor(a.id))}
+                    />
                   </Button>
                 {/snippet}
               </Tooltip.Trigger>
