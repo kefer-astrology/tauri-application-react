@@ -48,7 +48,7 @@
 <li>On each runner, install <strong>Rust</strong> via <code>dtolnay/rust-toolchain@stable</code> (or match <code>rust-toolchain.toml</code> / <code>src-tauri/Cargo.toml</code> <code>rust-version</code>).</li>
 <li>Install <strong>Tauri v2 prerequisites</strong> per OS (<a href="https://tauri.app/start/prerequisites/">Linux deps</a>, MSVC on Windows if building there).</li>
 <li>Cache <code>~/.cargo</code> and <code>src-tauri/target</code> where it helps.</li>
-<li>Build: <code>npm ci</code>, <code>npm run build -w web-react</code>, <code>npm run tauri build</code> (or <code>cargo build</code> only for a faster smoke test).</li>
+<li>Build: <code>npm ci</code>, then either <code>npm run build -w web-react</code> + <code>npm run tauri:build</code> or <code>npm run build -w web-svelte</code> + <code>npm run tauri:build:svelte</code> (or <code>cargo build</code> only for a faster smoke test).</li>
 </ul>
 <p><strong>Note on wording “compiler for each chart”:</strong> If this meant <strong>one Rust toolchain per CI job / per OS target</strong>, the matrix above is the usual pattern (each runner has its own <code>rustc</code> for that platform). If it meant <strong>astrological chart</strong> workloads compiled or validated in Rust per chart, that is <strong>application logic</strong> — track separately (e.g. tests under <code>src-tauri/</code>, not this doc).</p>
 <hr>
@@ -57,6 +57,9 @@
 <li>Python sidecar: build <code>kefer-backend</code> (or your binary name) in CI and attach as artifact, or document “bring your own binary” for PRs.</li>
 <li>Code signing / notarization secrets (Windows, macOS) — only when you are ready to release.</li>
 </ul>
+<h2 id="4-seriously-replace-all-svgs">4. seriously replace all svgs</h2>
+<h2 id="5--color-changes">5 . color changes</h2>
+<h2 id="6-theme-selector-button-is-not">6. theme selector button is not</h2>
 
     </div>
   </article>

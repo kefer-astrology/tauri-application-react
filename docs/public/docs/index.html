@@ -39,8 +39,8 @@
   </thead>
   <tbody>
       <tr>
-          <td><strong>React</strong> (<code>src/app/</code>, <code>src/main.tsx</code>)</td>
-          <td>UI shell (shadcn-style Radix components + MUI where used).</td>
+          <td><strong>Frontends</strong> (<code>apps/web-react/</code>, <code>apps/web-svelte/</code>)</td>
+          <td>UI workspaces. React is the current primary shell; Svelte is the more advanced alternate build.</td>
       </tr>
       <tr>
           <td><strong>Tauri</strong> (<code>src-tauri/</code>)</td>
@@ -52,20 +52,33 @@
       </tr>
       <tr>
           <td><strong>Static assets</strong> (<code>static/</code> at repo root)</td>
-          <td>Shared glyphs and favicon; each Vite app points <code>publicDir</code> here; URLs stay <code>/glyphs/...</code>.</td>
+          <td>Shared public assets for both frontends: <code>app-shell/**</code>, <code>glyphs/**</code>, favicon, and shared SVG families copied into each frontend build.</td>
       </tr>
   </tbody>
 </table>
-<h2 id="guides-read-in-this-order">Guides (read in this order)</h2>
-<ol>
+<h2 id="frontend-rules">Frontend rules</h2>
+<ul>
+<li>Prefer the existing shadcn-style component systems before inventing custom controls.</li>
+<li>React work should start from <code>apps/web-react/src/app/components/ui/</code>.</li>
+<li>Svelte work should start from <code>apps/web-svelte/src/lib/components/ui/</code>.</li>
+<li>Restyling should usually happen through shared variants, theme tokens, spacing, and composition rather than one-off component CSS forks.</li>
+</ul>
+<h2 id="core-docs">Core docs</h2>
+<ul>
 <li><strong><a href="./frontend-react/">frontend-react</a></strong> — React + Vite + Tauri wiring, Tauri API layer, assets, dev commands.</li>
-<li><strong><a href="./ui-conventions/">ui-conventions</a></strong> — Four themes, <code>sidebarThemeStyles</code>, secondary nav (transits/settings), i18n workflow (<code>translations.csv</code> → <code>npm run i18n:sync</code>).</li>
-<li><strong><a href="./architecture/">architecture</a></strong> — Workspace layout, storage model, data flow (Rust/Python).</li>
-<li><strong><a href="./python-package/">python-package</a></strong> — Python module and CLI.</li>
-<li><strong><a href="./time-navigation/">time-navigation</a></strong> — Time navigation design (reference; implement with React state/hooks).</li>
-<li><strong><a href="./physical-properties/">physical-properties</a></strong> — JPL / physical fields.</li>
-<li><strong><a href="./integration-examples/">integration-examples</a></strong> — <code>invoke</code> patterns and examples (some older snippets are illustrative only).</li>
-</ol>
+<li><strong><a href="./ui-conventions/">ui-conventions</a></strong> — Four themes, <code>sidebarThemeStyles</code>, secondary nav, and i18n workflow.</li>
+<li><strong><a href="./architecture/">architecture</a></strong> — Cross-layer model and current storage status.</li>
+<li><strong><a href="./tauri-command-contracts/">tauri-command-contracts</a></strong> — Current command-level behavior reference for the desktop app.</li>
+<li><strong><a href="./python-package/">python-package</a></strong> — Python backend contract and planned extensions.</li>
+</ul>
+<h2 id="reference-docs">Reference docs</h2>
+<ul>
+<li><strong><a href="./frontend-svelte/">frontend-svelte</a></strong> — Alternate Svelte workspace layout and docs build behavior.</li>
+<li><strong><a href="./time-navigation/">time-navigation</a></strong> — Time navigation design reference; implement with React state/hooks if adopted.</li>
+<li><strong><a href="./physical-properties/">physical-properties</a></strong> — JPL / physical field reference.</li>
+<li><strong><a href="./integration-examples/">integration-examples</a></strong> — <code>invoke</code> patterns and examples; illustrative only.</li>
+</ul>
+<p>For Codex-facing workflow and specs rules, start in <strong><code>/llm/</code></strong>, not here.</p>
 <h2 id="historical--planning-notes">Historical / planning notes</h2>
 <ul>
 <li><strong><a href="./discussion-summary/">discussion-summary</a></strong> and <strong><a href="./implementation-plan/">implementation-plan</a></strong> predate the React shell. Use them for background only; prefer <strong><a href="./frontend-react/">frontend-react</a></strong> and <strong><a href="./ui-conventions/">ui-conventions</a></strong> for the live codebase.</li>
@@ -84,6 +97,11 @@
             <p>Operational guide for the React &#43; Vite &#43; Tauri UI workspace.</p>
           </a>
         
+          <a class="card" href="/docs/frontend-svelte/">
+            <h2>Svelte frontend</h2>
+            <p>Operational guide for the alternate Svelte &#43; Vite &#43; Tauri workspace.</p>
+          </a>
+        
           <a class="card" href="/docs/ui-conventions/">
             <h2>UI conventions</h2>
             <p>Theme, layout, and i18n rules for the React shell.</p>
@@ -92,6 +110,11 @@
           <a class="card" href="/docs/architecture/">
             <h2>Architecture</h2>
             <p>Cross-layer architecture for the Tauri, React, and Python stack.</p>
+          </a>
+        
+          <a class="card" href="/docs/tauri-command-contracts/">
+            <h2>Tauri command contracts</h2>
+            <p>Normative command-level contract for the current desktop app.</p>
           </a>
         
           <a class="card" href="/docs/python-package/">

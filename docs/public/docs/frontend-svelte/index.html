@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Svelte frontend | Kefer docs</title>
+    <meta name="description" content="Operational guide for the alternate Svelte &#43; Vite &#43; Tauri workspace." />
+    
+    <link rel="stylesheet" href="/css/site.min.6dea3a68d7d33e949211edd3ff7022abdbe2b950a74846096dc611e865523e64.css" integrity="sha256-beo6aNfTPpSSEe3T/3Aiq9viuVCnSEYJbcYR6GVSPmQ=" />
+  </head>
+  <body>
+    <div class="shell">
+      <header class="site-header">
+        <a class="brand" href="/">Kefer docs</a>
+        <nav class="top-nav" aria-label="Primary">
+          <a href="/docs/">Docs</a>
+          <a href="/llm/">LLM handoff</a>
+          <a href="/#frontend-builds">Frontend builds</a>
+        </nav>
+      </header>
+      <main>
+        
+  <article class="content">
+    <header class="page-header">
+      <p class="eyebrow">docs</p>
+      <h1>Svelte frontend</h1>
+      <p class="lede">Operational guide for the alternate Svelte &#43; Vite &#43; Tauri workspace.</p>
+    </header>
+    <div class="prose">
+      <h1 id="svelte-frontend-alternate-tauri-shell">Svelte frontend (alternate Tauri shell)</h1>
+<p><code>apps/web-svelte</code> is the Svelte port of the app. It currently carries more feature depth than the React shell, so it is useful both as an implementation reference and as an alternate desktop target.</p>
+<h2 id="commands">Commands</h2>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;-webkit-text-size-adjust:none;"><code class="language-bash" data-lang="bash"><span style="display:flex;"><span>npm install
+</span></span><span style="display:flex;"><span>npm run dev:svelte            <span style="color:#75715e"># Vite only, http://localhost:1422</span>
+</span></span><span style="display:flex;"><span>npm run check:svelte          <span style="color:#75715e"># Svelte type/check pass</span>
+</span></span><span style="display:flex;"><span>npm run build:svelte          <span style="color:#75715e"># Frontend -&gt; apps/web-svelte/dist/</span>
+</span></span><span style="display:flex;"><span>npm run tauri:dev:svelte      <span style="color:#75715e"># Desktop app using the Svelte frontend</span>
+</span></span><span style="display:flex;"><span>npm run tauri:build:svelte    <span style="color:#75715e"># Desktop bundle with Svelte as foreground</span>
+</span></span><span style="display:flex;"><span>npm run docs:prepare          <span style="color:#75715e"># Builds all frontends and copies them into docs/static/apps/</span>
+</span></span></code></pre></div><h2 id="layout">Layout</h2>
+<table>
+  <thead>
+      <tr>
+          <th>Path</th>
+          <th>Purpose</th>
+      </tr>
+  </thead>
+  <tbody>
+      <tr>
+          <td><code>apps/web-svelte/src/App.svelte</code></td>
+          <td>Main shell for panels, radix/chart interactions, settings, and transit controls.</td>
+      </tr>
+      <tr>
+          <td><code>apps/web-svelte/src/lib/</code></td>
+          <td>Svelte state, i18n, glyphs, shared UI primitives, and Tauri <code>invoke</code> usage.</td>
+      </tr>
+      <tr>
+          <td><code>apps/web-svelte/src/lib/i18n/</code></td>
+          <td>Generated locale JSON (<code>cs</code>, <code>en</code>, <code>fr</code>, <code>es</code>) plus the Svelte runtime helper.</td>
+      </tr>
+      <tr>
+          <td><code>apps/web-svelte/vite.config.ts</code></td>
+          <td>Shared static root, docs-safe base path support, and the alternate Vite/Tauri dev ports (<code>1422</code>/<code>1423</code>).</td>
+      </tr>
+  </tbody>
+</table>
+<h2 id="structure-conventions">Structure conventions</h2>
+<ul>
+<li><code>src/App.svelte</code> is currently a large integration shell. Treat it as orchestration glue, not as the preferred home for new feature logic.</li>
+<li>New feature UI should usually be extracted into <code>src/lib/components/</code> instead of extending <code>App.svelte</code> with another large conditional branch.</li>
+<li>Shared Svelte UI primitives belong under <code>src/lib/components/ui/</code>.</li>
+<li>Rune-backed global state should live in <code>src/lib/state/*.svelte.ts</code>, with plain <code>.ts</code> wrappers only when needed for cleaner imports.</li>
+<li>Shared visual asset resolution belongs in dedicated helpers such as:
+<ul>
+<li><code>src/lib/stores/app-shell-icons.svelte.ts</code></li>
+<li><code>src/lib/stores/glyphs.svelte.ts</code></li>
+</ul>
+</li>
+<li>Do not add or revive app-local icon families under <code>src/lib/icons/</code> for app-shell style navigation. That directory is legacy; shared app-shell icons and logos come from repo-root <code>static/</code>.</li>
+</ul>
+<h2 id="ui-component-strategy">UI component strategy</h2>
+<ul>
+<li>Prefer the shared Svelte UI primitives under <code>apps/web-svelte/src/lib/components/ui/</code> before introducing bespoke controls.</li>
+<li>Those primitives are the Svelte-side equivalent of the repo’s shadcn-style component layer and should be the first place to extend styling behavior.</li>
+<li>Styling should flow through shared tokens, variants, spacing, and wrappers before adding one-off component CSS.</li>
+<li>When two views are structurally similar, prefer extracting a shared panel, menu, or content container rather than repeating another mode-specific block inside <code>App.svelte</code>.</li>
+</ul>
+<h2 id="shared-static-assets">Shared static assets</h2>
+<p>Both frontends consume the same repo-root <code>static/</code> tree:</p>
+<ul>
+<li><code>static/app-shell/icons/default/*.svg</code></li>
+<li><code>static/app-shell/icons/modern/*.svg</code></li>
+<li><code>static/app-shell/logo-full-*.svg</code></li>
+<li><code>static/app-shell/logo-mark-*.svg</code></li>
+<li><code>static/glyphs/default/{planets,zodiac}/*.svg</code></li>
+<li><code>static/glyphs/modern/{planets,zodiac}/*.svg</code></li>
+</ul>
+<p>App-shell SVGs are shared source assets, but they are not intrinsically uniform:</p>
+<ul>
+<li>the <code>default</code> icon family is mostly filled artwork authored in a <code>209 x 209</code> box</li>
+<li>the <code>modern</code> family is mostly <code>24 x 24</code> stroke-based artwork</li>
+<li>full logos are rectangular and must not be rendered through a square-only assumption</li>
+</ul>
+<p>Normalization therefore happens in the frontend render layer:</p>
+<ul>
+<li>Svelte paths and logo ratios live in <code>apps/web-svelte/src/lib/stores/app-shell-icons.svelte.ts</code></li>
+<li>the shared masked renderer is <code>apps/web-svelte/src/lib/components/SharedSvgIcon.svelte</code></li>
+<li>React mirrors the same behavior in its own app-shell helper and shared SVG wrapper</li>
+</ul>
+<p>That render-layer normalization is per icon, not just per family, because several icons within the same set occupy meaningfully different visual area.</p>
+<p>Legacy note:</p>
+<ul>
+<li><code>apps/web-svelte/src/lib/icons/</code> should be treated as obsolete local icon residue, not as the source of truth for the app shell.</li>
+<li>Shared shell visuals should continue to resolve through the repo-root <code>static/</code> assets and the corresponding Svelte helper stores.</li>
+</ul>
+<p>Svelte resolves these through <code>import.meta.env.BASE_URL</code>, so the same code works for:</p>
+<ul>
+<li>normal app builds and Tauri builds</li>
+<li>docs publishing under <code>/apps/web-svelte/</code></li>
+</ul>
+<h2 id="static-docs-build">Static docs build</h2>
+<p><code>npm run docs:prepare</code> already builds every workspace under <code>apps/*</code> and copies each finished <code>dist/</code> into <code>docs/static/apps/&lt;app&gt;/</code>. That means the Svelte app is automatically published under the docs artifact alongside React, with no extra per-app copy step.</p>
+<p>Published static entry points:</p>
+<ul>
+<li>Svelte: <code>apps/web-svelte/</code></li>
+<li>React: <code>apps/web-react/</code></li>
+</ul>
+<h2 id="tauri-targeting">Tauri targeting</h2>
+<p>The base <code>src-tauri/tauri.conf.json</code> still points at React by default. Use the override configs when you want the desktop shell to foreground Svelte instead:</p>
+<ul>
+<li><code>src-tauri/tauri.react.conf.json</code></li>
+<li><code>src-tauri/tauri.svelte.conf.json</code></li>
+</ul>
+<p>The root scripts wrap those configs so you can switch foregrounds without editing Tauri config files by hand.</p>
+
+    </div>
+  </article>
+
+      </main>
+    </div>
+  </body>
+</html>

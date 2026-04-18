@@ -26,7 +26,30 @@ weight: 20
 - Shared asset source of truth:
   - app-shell icons live under `static/app-shell/icons/default/` and `static/app-shell/icons/modern/`
   - logos live under `static/app-shell/logo-*.svg`
-  - glyphs live under `static/glyphs/default/{planets,zodiac}/` and `static/glyphs/classic/{planets,zodiac}/`
+  - glyphs live under `static/glyphs/default/{planets,zodiac}/` and `static/glyphs/modern/{planets,zodiac}/`
+  - app-shell files are shared source assets, but render normalization happens in frontend helpers because the families mix different intrinsic boxes (`209x209`, `24x24`, and wide logo ratios), and several icons need per-icon scaling to look even within the same selected set
+
+## Documentation split
+
+- `docs/content/llm/` is the primary home for Codex-facing workflow, specs, and continuation rules.
+- `docs/content/docs/` is the primary home for human-readable project documentation and system description.
+- When starting implementation, look for specs in `docs/content/llm/` first.
+- Use `docs/content/docs/` to understand the current system and confirm how the pieces fit together.
+
+## Implementation principles
+
+- Prefer repo-root `static/` shared assets over app-local assets whenever the resource can be reused across frontends.
+- Do not introduce new app-local icons, logos, glyphs, or similar visual source assets when an equivalent shared asset belongs in `static/`.
+- If a visual can be expressed cleanly in CSS or tokens, prefer that over adding a one-off raster asset to a frontend workspace.
+- Keep project consistency above local convenience: reuse existing helpers, wrappers, layout shells, and state patterns before inventing a parallel path.
+- Avoid repeating the same logic, markup structure, or styling rules in multiple places. Extract helpers, hooks, shared config, or small components when repetition starts to emerge.
+- When two features are materially similar, prefer a shared container, shared page shell, or composable building block instead of cloning and diverging.
+- New features should be added concisely: integrate with the existing structure, minimize bespoke patterns, and favor extension over duplication.
+- Prefer naming and placement that reinforce the current boundaries:
+  - app-specific composition and providers in `src/app/`
+  - feature-facing UI in `src/app/components/`
+  - shared presentational primitives in `src/ui/`
+  - non-visual logic and metadata in `src/lib/`
 
 ## UI implementation rules
 
@@ -35,9 +58,21 @@ weight: 20
 - In Svelte, that means starting from the existing shared UI primitives built around Bits UI in `apps/web-svelte/src/lib/components/ui/`.
 - Do not introduce ad-hoc bespoke controls when an existing shadcn-style primitive can be extended with tokens, variants, spacing, or composition.
 - Styling should flow through shared theme tokens and shared component surfaces before adding one-off CSS.
+- In React specifically, prefer existing shared building blocks such as:
+  - `useAppFormFieldTheme()` for themed form surfaces
+  - `AppMainContentRoot` / `AppMainContentContainer` for top-level page shells
+  - `src/lib/app-shell.ts` + `src/ui/app-shell-icon.tsx` for app-shell asset selection and rendering
+- In Svelte specifically, prefer existing shared building blocks such as:
+  - `src/lib/stores/app-shell-icons.svelte.ts` for app-shell asset selection and normalization
+  - `src/lib/stores/glyphs.svelte.ts` for glyph set resolution
+  - `src/lib/components/ui/` primitives before custom mode-specific markup
+  - extracted `src/lib/components/` feature pieces instead of growing `App.svelte` with more inline feature branches
+- Treat `apps/web-svelte/src/lib/icons/` as legacy residue rather than an approved source of truth for shell/navigation icons.
 
 ## Best entrypoints
 
+- [specs-workflow](../specs-workflow/) for the LLM-first specs rule.
+- [rust-workspace-contract](../rust-workspace-contract/) for current Rust workspace, storage, and no-sidecar rules.
 - `../../docs/` for deeper technical documentation.
 - [frontend-react](../../docs/frontend-react/) for UI and workspace wiring.
 - [frontend-svelte](../../docs/frontend-svelte/) for the alternate Svelte workspace.

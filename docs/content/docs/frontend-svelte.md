@@ -29,11 +29,23 @@ npm run docs:prepare          # Builds all frontends and copies them into docs/s
 | `apps/web-svelte/src/lib/i18n/` | Generated locale JSON (`cs`, `en`, `fr`, `es`) plus the Svelte runtime helper.                           |
 | `apps/web-svelte/vite.config.ts` | Shared static root, docs-safe base path support, and the alternate Vite/Tauri dev ports (`1422`/`1423`). |
 
+## Structure conventions
+
+- `src/App.svelte` is currently a large integration shell. Treat it as orchestration glue, not as the preferred home for new feature logic.
+- New feature UI should usually be extracted into `src/lib/components/` instead of extending `App.svelte` with another large conditional branch.
+- Shared Svelte UI primitives belong under `src/lib/components/ui/`.
+- Rune-backed global state should live in `src/lib/state/*.svelte.ts`, with plain `.ts` wrappers only when needed for cleaner imports.
+- Shared visual asset resolution belongs in dedicated helpers such as:
+  - `src/lib/stores/app-shell-icons.svelte.ts`
+  - `src/lib/stores/glyphs.svelte.ts`
+- Do not add or revive app-local icon families under `src/lib/icons/` for app-shell style navigation. That directory is legacy; shared app-shell icons and logos come from repo-root `static/`.
+
 ## UI component strategy
 
 - Prefer the shared Svelte UI primitives under `apps/web-svelte/src/lib/components/ui/` before introducing bespoke controls.
 - Those primitives are the Svelte-side equivalent of the repo’s shadcn-style component layer and should be the first place to extend styling behavior.
 - Styling should flow through shared tokens, variants, spacing, and wrappers before adding one-off component CSS.
+- When two views are structurally similar, prefer extracting a shared panel, menu, or content container rather than repeating another mode-specific block inside `App.svelte`.
 
 ## Shared static assets
 
@@ -44,7 +56,26 @@ Both frontends consume the same repo-root `static/` tree:
 - `static/app-shell/logo-full-*.svg`
 - `static/app-shell/logo-mark-*.svg`
 - `static/glyphs/default/{planets,zodiac}/*.svg`
-- `static/glyphs/classic/{planets,zodiac}/*.svg`
+- `static/glyphs/modern/{planets,zodiac}/*.svg`
+
+App-shell SVGs are shared source assets, but they are not intrinsically uniform:
+
+- the `default` icon family is mostly filled artwork authored in a `209 x 209` box
+- the `modern` family is mostly `24 x 24` stroke-based artwork
+- full logos are rectangular and must not be rendered through a square-only assumption
+
+Normalization therefore happens in the frontend render layer:
+
+- Svelte paths and logo ratios live in `apps/web-svelte/src/lib/stores/app-shell-icons.svelte.ts`
+- the shared masked renderer is `apps/web-svelte/src/lib/components/SharedSvgIcon.svelte`
+- React mirrors the same behavior in its own app-shell helper and shared SVG wrapper
+
+That render-layer normalization is per icon, not just per family, because several icons within the same set occupy meaningfully different visual area.
+
+Legacy note:
+
+- `apps/web-svelte/src/lib/icons/` should be treated as obsolete local icon residue, not as the source of truth for the app shell.
+- Shared shell visuals should continue to resolve through the repo-root `static/` assets and the corresponding Svelte helper stores.
 
 Svelte resolves these through `import.meta.env.BASE_URL`, so the same code works for:
 

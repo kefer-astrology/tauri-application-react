@@ -24,16 +24,22 @@ Start here for how the Kefer desktop app is structured and how to work on it.
 - Svelte work should start from `apps/web-svelte/src/lib/components/ui/`.
 - Restyling should usually happen through shared variants, theme tokens, spacing, and composition rather than one-off component CSS forks.
 
-## Guides (read in this order)
+## Core docs
 
-1. **[frontend-react](./frontend-react/)** — React + Vite + Tauri wiring, Tauri API layer, assets, dev commands.
-2. **[frontend-svelte](./frontend-svelte/)** — Svelte workspace layout, docs build behavior, and alternate Tauri scripts.
-3. **[ui-conventions](./ui-conventions/)** — Four themes, `sidebarThemeStyles`, secondary nav (transits/settings), i18n workflow (`translations.csv` → `npm run i18n:sync`).
-4. **[architecture](./architecture/)** — Workspace layout, storage model, data flow (Rust/Python).
-5. **[python-package](./python-package/)** — Python module and CLI.
-6. **[time-navigation](./time-navigation/)** — Time navigation design (reference; implement with React state/hooks).
-7. **[physical-properties](./physical-properties/)** — JPL / physical fields.
-8. **[integration-examples](./integration-examples/)** — `invoke` patterns and examples (some older snippets are illustrative only).
+- **[frontend-react](./frontend-react/)** — React + Vite + Tauri wiring, Tauri API layer, assets, dev commands.
+- **[ui-conventions](./ui-conventions/)** — Four themes, `sidebarThemeStyles`, secondary nav, and i18n workflow.
+- **[architecture](./architecture/)** — Cross-layer model and current storage status.
+- **[tauri-command-contracts](./tauri-command-contracts/)** — Current command-level behavior reference for the desktop app.
+- **[python-package](./python-package/)** — Python backend contract and planned extensions.
+
+## Reference docs
+
+- **[frontend-svelte](./frontend-svelte/)** — Alternate Svelte workspace layout and docs build behavior.
+- **[time-navigation](./time-navigation/)** — Time navigation design reference; implement with React state/hooks if adopted.
+- **[physical-properties](./physical-properties/)** — JPL / physical field reference.
+- **[integration-examples](./integration-examples/)** — `invoke` patterns and examples; illustrative only.
+
+For Codex-facing workflow and specs rules, start in **`/llm/`**, not here.
 
 ## Historical / planning notes
 

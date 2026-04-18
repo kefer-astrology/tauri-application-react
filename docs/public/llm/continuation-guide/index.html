@@ -30,11 +30,23 @@
       <h2 id="safe-continuation-loop">Safe continuation loop</h2>
 <ol>
 <li>Read <code>/llm/project-context/</code>.</li>
+<li>Read <code>/llm/specs-workflow/</code>.</li>
+<li>Look in <code>/llm/</code> for any task-specific spec or operating note before treating <code>/docs/</code> as the spec source.</li>
 <li>Read <code>/docs/</code> and then the most relevant guide for the task area.</li>
 <li>Inspect current uncommitted changes before editing.</li>
 <li>Rebuild generated docs assets with <code>npm run docs:prepare</code> when frontend build output changes.</li>
 <li>Avoid editing copied frontend files in <code>docs/static/apps/</code>; change the source app instead.</li>
+<li>Prefer shared <code>static/</code> assets over app-local assets whenever a resource can belong to both frontends.</li>
+<li>Before adding new code, check whether an equivalent helper, hook, layout shell, or shared component already exists.</li>
+<li>If two features or screens are structurally similar, prefer extracting a shared container or reusable building block instead of duplicating them.</li>
 </ol>
+<h2 id="codex-rule">Codex rule</h2>
+<ul>
+<li>Always look for the spec in <code>/llm/</code> first.</li>
+<li>Use <code>/docs/</code> as descriptive system documentation and current-behavior reference.</li>
+<li>If a task has no explicit <code>/llm/</code> spec, derive the narrowest safe interpretation from <code>/docs/</code> plus live code and record assumptions.</li>
+<li>When architecture direction changes, update the relevant <code>/llm/</code> spec in the same change set.</li>
+</ul>
 <h2 id="docs-publishing-contract">Docs publishing contract</h2>
 <ul>
 <li>Hugo source lives in <code>docs/</code>.</li>

@@ -14,9 +14,9 @@ Operational guide for the Kefer desktop UI (React + Vite + Tauri).
 - Rust toolchain for `cargo tauri build` / `cargo tauri dev`.
 - Python sidecar: built binary expected at `src-tauri/binaries/kefer-backend` (see Tauri `bundle.resources` in `src-tauri/tauri.conf.json`).
 
-### Workspace DuckDB storage (currently off)
+### Workspace-only storage compatibility
 
-The `duckdb` crate and `src-tauri/src/storage/duckdb.rs` were removed to avoid heavy native builds during UI work. **`src-tauri/src/commands/storage.rs`** still exposes the same Tauri commands (`init_storage`, `query_positions`, etc.); they are **no-ops** or return **empty lists** (see file header). Chart data still flows through YAML + Python compute; only the DuckDB time-series layer is inactive. To restore, re-add the `duckdb` dependency, bring back `storage/duckdb.rs` from version control history, and wire `commands/storage.rs` to `DuckDBStorage` again.
+The Rust desktop app does not persist computed chart data. **`src-tauri/src/commands/storage.rs`** still exposes compatibility commands (`init_storage`, `query_positions`, etc.) so existing frontend `invoke` calls continue to work, but those commands do not store calculated data. Workspace data still flows through YAML plus in-memory compute results.
 
 ## Commands
 
@@ -36,10 +36,11 @@ npm run i18n:sync        # Regenerate `apps/web-react/src/locales/*.json` from `
 | Path                                 | Purpose                                                                                                                                          |
 | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `apps/web-react/src/main.tsx`        | React root; mounts `<App />` and `<Toaster />` (sonner).                                                                                         |
-| `apps/web-react/src/app/App.tsx`     | Main shell: sidebar, views, **workspace open/save** handlers.                                                                                    |
-| `apps/web-react/src/app/components/` | Feature components and the shared React UI layer. Prefer the Radix/shadcn-style primitives under `ui/`.                                         |
+| `apps/web-react/src/app/`            | App composition layer: `App.tsx`, app-scoped providers, and feature wiring.                                                                      |
+| `apps/web-react/src/app/components/` | Feature components for the React app shell. Prefer the Radix/shadcn-style primitives under `ui/`.                                               |
+| `apps/web-react/src/ui/`             | Cross-cutting presentational primitives shared by features, such as app-shell renderers and masked SVG wrappers.                                |
 | `apps/web-react/src/styles/`         | `index.css` → Tailwind 4, theme tokens, fonts.                                                                                                   |
-| `apps/web-react/src/lib/tauri/`      | **Tauri bridge**: types, chart payloads, workspace helpers.                                                                                      |
+| `apps/web-react/src/lib/`            | Non-visual logic and infrastructure: Tauri bridge, i18n setup, app-shell metadata/path helpers.                                                 |
 | `static/` (repo root)                | **Shared public assets**: `app-shell/**`, `glyphs/**`, `favicon.png`. Used by Vite `publicDir` and copied into `dist/` on build.                |
 | `apps/web-react/src/locales/`        | **i18n JSON** (`cs`, `en`, `fr`, `es`) — generated from `translations.csv`; imported by the app (not served from `static/`).                     |
 | `apps/web-react/src/lib/i18n/`       | **i18next** init, `LANGUAGE_STORAGE_KEY` (`kefer-language` in `localStorage`).                                                                   |
@@ -76,9 +77,24 @@ In **`App.tsx`**, sidebar actions:
 
 Other views (horoscope dashboard, transits, aspectarium) are still mostly presentational until you thread `charts` / `computed` state into them.
 
+## Structure conventions
+
+- `src/app/` is the app composition layer: route-level or shell-level wiring, app-scoped providers, and feature assembly.
+- `src/app/components/` is for feature-facing React UI used by this app.
+- `src/ui/` is for shared presentational primitives that are reused across features and are not tied to one screen.
+- `src/lib/` is for non-visual logic only: storage keys, asset metadata, Tauri helpers, and i18n/runtime glue.
+
+Examples in the current tree:
+
+- `src/lib/app-shell.ts` holds app-shell types, storage keys, asset selection, and normalization metadata.
+- `src/ui/app-shell-icon.tsx` and `src/ui/shared-svg-icon.tsx` render that metadata into actual React elements.
+- `src/app/providers/workspace-charts.tsx` is app-scoped state wiring for loaded workspace charts.
+
 ## Shared static assets
 
 Keep shared source assets under repo-root `static/`. `apps/web-react` points Vite `publicDir` at that folder, so assets are copied into the app build and resolved through the active Vite base path.
+
+The current React workspace keeps no local source assets. Shared shell icons, logos, and glyph families live in repo-root `static/`, and theme-only backgrounds should prefer CSS gradients or tokens when possible.
 
 Current source-of-truth layout:
 
@@ -88,8 +104,25 @@ Current source-of-truth layout:
 - `static/app-shell/logo-mark-*.svg`
 - `static/glyphs/default/planets/*.svg`
 - `static/glyphs/default/zodiac/*.svg`
-- `static/glyphs/classic/planets/*.svg`
-- `static/glyphs/classic/zodiac/*.svg`
+- `static/glyphs/modern/planets/*.svg`
+- `static/glyphs/modern/zodiac/*.svg`
+
+### App-shell normalization
+
+The app-shell SVG files are shared, but they are not all authored with the same intrinsic geometry:
+
+- most `default` set icons use a `209 x 209` viewBox and filled silhouettes
+- `modern` set icons mostly use a `24 x 24` stroke-based Lucide-style box
+- full logos are wide rectangles, not square icons
+
+Because of that, visual normalization happens in the frontend render helpers, not in the raw asset files:
+
+- React metadata: `apps/web-react/src/lib/app-shell.ts`
+- React rendering: `apps/web-react/src/ui/app-shell-icon.tsx`
+- Svelte: `apps/web-svelte/src/lib/stores/app-shell-icons.svelte.ts`
+- shared mask wrapper: `SharedSvgIcon` in each frontend
+
+Those helpers apply the active base URL, preserve rectangular logo aspect ratios, and use per-icon mask scaling so icons within the same family land on a more even visual footprint.
 
 For docs builds, the app is published under `/apps/web-react/`, so shared asset URLs must be based on `import.meta.env.BASE_URL` rather than hard-coded root-absolute paths.
 
@@ -97,7 +130,7 @@ Example glyph paths:
 
 ```tsx
 <img src={`${import.meta.env.BASE_URL}glyphs/default/planets/sun.svg`} alt="" />
-<img src={`${import.meta.env.BASE_URL}glyphs/classic/zodiac/aries.svg`} alt="" />
+<img src={`${import.meta.env.BASE_URL}glyphs/modern/zodiac/aries.svg`} alt="" />
 ```
 
 Do not rely on old `dist/` copies for source of truth; `dist/` is build output and is gitignored.
@@ -110,7 +143,7 @@ Do not rely on old `dist/` copies for source of truth; `dist/` is build output a
 
 ## Figma / Make export fixes
 
-`figma:asset/....png` style imports are replaced with **`@/assets/....png`** (Vite resolves `@` → `apps/web-react/src/`). PNG files live in `apps/web-react/src/assets/`.
+Older `figma:asset/....png` imports should not be reintroduced as local source files. If an exported raster is truly needed, treat it as an explicit exception; otherwise prefer shared `static/` assets or CSS-defined visuals.
 
 ## TypeScript strictness
 
@@ -118,5 +151,5 @@ Do not rely on old `dist/` copies for source of truth; `dist/` is build output a
 
 ## Related backend docs
 
-- **[architecture](./architecture/)** — workspace YAML, DuckDB, command responsibilities.
+- **[architecture](./architecture/)** — workspace YAML, compute flow, command responsibilities.
 - **[integration-examples](./integration-examples/)** — `invoke` examples (`@tauri-apps/api/core`; same from React).

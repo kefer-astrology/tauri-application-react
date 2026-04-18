@@ -1,0 +1,47 @@
+---
+title: "Rust workspace contract"
+weight: 35
+---
+
+# Rust workspace contract
+
+This page defines the current Rust-side implementation direction for the desktop app.
+
+## Scope
+
+Rust owns local workspace functionality and the no-sidecar execution path.
+
+Rust does not own persisted storage of computed positions, aspects, or transit series.
+
+## Rules
+
+- Keep workspace persistence focused on YAML manifests and chart files.
+- Respect the structures defined by `backend-python/module/models.py`.
+- Use `backend-python/module/workspace.py` as the reference for workspace-loading intent.
+- The desktop app must run without the Python sidecar.
+- The app should check whether the Python backend is available at startup and use that availability state as the general runtime decision source.
+- Do not repeatedly probe for Python sidecar existence in every feature flow when startup availability state can be reused.
+- If Python is unavailable, Rust fallback behavior must remain functional for supported features.
+- Do not reintroduce DuckDB- or Parquet-based persistence on the Rust side unless a new `/llm/` spec explicitly changes this rule.
+
+## Practical implications
+
+- `init_storage` is a compatibility command only.
+- Storage query commands may remain compatibility shims that return empty results.
+- Rust compute commands should continue to support local in-memory results for the no-sidecar path.
+- Workspace and chart file behavior should stay aligned with the Python workspace/model layer.
+- Native YAML chart import should work through Rust without requiring the Python backend.
+- StarFisher/SFS import remains in scope, but should stay explicitly staged until a Python-backed parser path is wired in.
+- `swisseph` is the default engine for no-sidecar desktop flows.
+- `jpl` remains backlog for the Rust path and should currently be treated as Python-backed precision work.
+- Backend selection should follow this general rule:
+  - app starts
+  - app checks Python backend availability once
+  - if Python is available, Python-backed flows may be used
+  - if Python is unavailable, flows fall back to Rust where supported
+
+## Dependency rule
+
+- Remove Rust dependencies that are no longer used.
+- Prefer deleting unused helper modules when removing a dependency.
+- When changing architecture direction, update the `/llm/` spec in the same change set.

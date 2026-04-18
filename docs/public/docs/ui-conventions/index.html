@@ -27,8 +27,16 @@
       <p class="lede">Theme, layout, and i18n rules for the React shell.</p>
     </header>
     <div class="prose">
-      <h1 id="ui-conventions-react-shell">UI conventions (React shell)</h1>
-<p>Crisp reference for <strong>themes</strong>, <strong>secondary navigation</strong>, and <strong>i18n</strong> so new work stays aligned with the four app themes and a single source of styling truth.</p>
+      <h1 id="ui-conventions">UI conventions</h1>
+<p>Crisp reference for <strong>themes</strong>, <strong>secondary navigation</strong>, <strong>shared component strategy</strong>, and <strong>i18n</strong> so new work stays aligned with the app themes and a single source of styling truth.</p>
+<h2 id="component-baseline">Component baseline</h2>
+<ul>
+<li>Prefer the repo’s existing shadcn-style component systems before building bespoke controls.</li>
+<li>In React, start with <code>src/app/components/ui/</code>.</li>
+<li>In Svelte, start with <code>src/lib/components/ui/</code>.</li>
+<li>Treat those as the default styling surface for forms, overlays, panels, selectors, and interactive controls.</li>
+<li>When visuals need tuning, prefer variants, theme tokens, spacing, and composition over isolated per-component CSS forks.</li>
+</ul>
 <h2 id="four-app-themes">Four app themes</h2>
 <p>The product uses exactly four named themes (no ad‑hoc palettes in feature code):</p>
 <table>
@@ -99,7 +107,7 @@
       </tr>
       <tr>
           <td>Runtime</td>
-          <td><code>react-i18next</code>; keys are CSV <code>internal_name</code> values</td>
+          <td>React and Svelte both consume generated locale packs; keys are CSV <code>internal_name</code> values</td>
       </tr>
   </tbody>
 </table>
