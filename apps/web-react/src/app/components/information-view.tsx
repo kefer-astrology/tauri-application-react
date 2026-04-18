@@ -1,9 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Star } from 'lucide-react';
 import { Theme } from './astrology-sidebar';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
 import { Badge } from './ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
@@ -12,7 +12,7 @@ import { Separator } from './ui/separator';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import {
-	HoroscopeWheel_COPIED_FROM_HOROSKOP,
+	HoroscopeWheel,
 	type HemisphereOverlayKind,
 	type HoroscopeWheelBody
 } from './horoscope-wheel';
@@ -37,7 +37,7 @@ function chipStateClass(
 
 export function InformationView({ theme }: InformationViewProps) {
 	const { t } = useTranslation();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 	const isDark = theme === 'midnight' || theme === 'twilight';
 
 	const [microHover, setMicroHover] = useState<MicroBadgeId | null>(null);
@@ -98,8 +98,10 @@ export function InformationView({ theme }: InformationViewProps) {
 		isDark ? 'bg-background text-foreground' : 'bg-background text-foreground'
 	);
 
-	const railCard = cn('gap-2 py-3 shadow-sm', ft.settingsCard);
 	const smallTitle = cn('text-xs font-semibold uppercase tracking-wide', ft.muted);
+	const RailCard = ({ className, ...props }: ComponentProps<typeof Card>) => (
+		<Card variant="themed" theme={theme} className={cn('gap-2 py-3 shadow-sm', className)} {...props} />
+	);
 
 	const bottomChips: { id: string; label: string }[] = [
 		{ id: 'dom-el', label: 'Dominantní živel: Oheň' },
@@ -145,7 +147,7 @@ export function InformationView({ theme }: InformationViewProps) {
 					className="h-full w-[min(100%,280px)] min-w-[240px] flex-shrink-0 pr-1"
 				>
 					<div className="flex flex-col gap-2 pb-2">
-						<Card data-handoff="Card_ElementDominance" className={railCard}>
+						<RailCard data-handoff="Card_ElementDominance">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Převaha živlu</CardTitle>
 								<CardDescription className="text-xs">Legenda: počet planet · podíl</CardDescription>
@@ -168,9 +170,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									</TabsContent>
 								</Tabs>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_ModalityDominance" className={railCard}>
+						<RailCard data-handoff="Card_ModalityDominance">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Převaha modu</CardTitle>
 								<CardDescription className="text-xs">Kardinální / Fixní / Mutuální</CardDescription>
@@ -208,9 +210,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									</TabsContent>
 								</Tabs>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_HouseTypeDominance" className={railCard}>
+						<RailCard data-handoff="Card_HouseTypeDominance">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Převaha v domech</CardTitle>
 								<CardDescription className="text-xs">Aktivní / Reaktivní / Výsledné + heatmap I–XII</CardDescription>
@@ -249,9 +251,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									</TabsContent>
 								</Tabs>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_Quadrants" className={railCard}>
+						<RailCard data-handoff="Card_Quadrants">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Kvadranty</CardTitle>
 								<CardDescription className="text-xs">Q1–Q4 · podíl</CardDescription>
@@ -259,9 +261,9 @@ export function InformationView({ theme }: InformationViewProps) {
 							<CardContent className="px-3">
 								<QuadrantDonut />
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_Hemispheres" className={railCard}>
+						<RailCard data-handoff="Card_Hemispheres">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Hemisféry</CardTitle>
 								<CardDescription className="text-xs">
@@ -319,9 +321,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									<HemiBalanceBar leftPct={60} rightPct={40} />
 								</div>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_ExtroIntro" className={railCard}>
+						<RailCard data-handoff="Card_ExtroIntro">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Extroverze / Introverze</CardTitle>
 								<CardDescription className="text-xs">Dummy balance · orientace hemisfér</CardDescription>
@@ -340,7 +342,7 @@ export function InformationView({ theme }: InformationViewProps) {
 									Východní hemisféra + horní · dummy váha
 								</p>
 							</CardContent>
-						</Card>
+						</RailCard>
 					</div>
 				</ScrollArea>
 
@@ -391,7 +393,7 @@ export function InformationView({ theme }: InformationViewProps) {
 
 					<div className="relative min-h-0 flex-1">
 						<div className="flex h-full min-h-[200px] items-center justify-center p-1">
-							<HoroscopeWheel_COPIED_FROM_HOROSKOP
+							<HoroscopeWheel
 								theme={theme}
 								showPlanetGlyphs
 								showAxisLines
@@ -405,7 +407,7 @@ export function InformationView({ theme }: InformationViewProps) {
 					</div>
 
 					<div className="flex-shrink-0 px-2 pb-2">
-						<Card data-handoff="Card_ShapeDiagram" className="gap-1 py-2 shadow-sm">
+						<RailCard data-handoff="Card_ShapeDiagram" className="gap-1 py-2">
 							<CardContent className="flex items-center justify-between gap-3 px-3 py-2">
 								<div>
 									<p className={cn('text-xs font-medium', ft.title)}>Tvarový diagram horoskopu</p>
@@ -421,7 +423,7 @@ export function InformationView({ theme }: InformationViewProps) {
 									<span className="bg-primary h-8 w-1 rounded-md" />
 								</div>
 							</CardContent>
-						</Card>
+						</RailCard>
 					</div>
 				</div>
 
@@ -431,7 +433,7 @@ export function InformationView({ theme }: InformationViewProps) {
 					className="h-full w-[min(100%,340px)] min-w-[280px] flex-shrink-0 pr-1"
 				>
 					<div className="flex flex-col gap-2 pb-2">
-						<Card data-handoff="Card_Aspects" className={cn(railCard, 'gap-1')}>
+						<RailCard data-handoff="Card_Aspects" className="gap-1">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<div className="flex items-center justify-between gap-2">
 									<CardTitle className={cn('text-sm', ft.title)}>Aspekty</CardTitle>
@@ -472,9 +474,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									</TabsContent>
 								</Tabs>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_Configurations" className={railCard}>
+						<RailCard data-handoff="Card_Configurations">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Konfigurace</CardTitle>
 							</CardHeader>
@@ -506,9 +508,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									Preview: {configs.find((c) => c.id === selectedConfig)?.label ?? '—'}
 								</div>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_Stellium" className={railCard}>
+						<RailCard data-handoff="Card_Stellium">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Stellium</CardTitle>
 							</CardHeader>
@@ -516,11 +518,10 @@ export function InformationView({ theme }: InformationViewProps) {
 								<p className="text-sm font-medium">Stellium: 10. dům (3 planety)</p>
 								<p className="text-muted-foreground text-[11px]">☉ ♀ ♃</p>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card
+						<RailCard
 							data-handoff="Card_SingletonHemisphere"
-							className={railCard}
 							onMouseEnter={() => setSingletonHover(true)}
 							onMouseLeave={() => setSingletonHover(false)}
 						>
@@ -535,9 +536,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									Hover: halo planety + hemisférický overlay (ASC–DSC)
 								</p>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_Retrograde" className={railCard}>
+						<RailCard data-handoff="Card_Retrograde">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Retrogradita</CardTitle>
 							</CardHeader>
@@ -566,9 +567,9 @@ export function InformationView({ theme }: InformationViewProps) {
 									Všechny planety na východě retrográdní → náhled ASC hemisféra
 								</button>
 							</CardContent>
-						</Card>
+						</RailCard>
 
-						<Card data-handoff="Card_FocalPlanets" className={railCard}>
+						<RailCard data-handoff="Card_FocalPlanets">
 							<CardHeader className="px-3 pt-3 pb-0">
 								<CardTitle className={cn('text-sm', ft.title)}>Ohniskové planety</CardTitle>
 								<CardDescription className="text-xs">Unified focus panel · filtry (multi)</CardDescription>
@@ -620,7 +621,7 @@ export function InformationView({ theme }: InformationViewProps) {
 									Una: při aktivaci zvýraznit planetu bez hlavních aspektů v kruhu (koncept).
 								</p>
 							</CardContent>
-						</Card>
+						</RailCard>
 					</div>
 				</ScrollArea>
 			</div>

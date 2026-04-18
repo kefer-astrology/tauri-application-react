@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
 	ChevronDown,
 	ChevronRight,
@@ -10,65 +10,124 @@ import {
 	X
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { Card } from './ui/card';
+import { Badge } from './ui/badge';
 import { Input } from './ui/input';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import { HoroscopeContextTabs } from './horoscope-context-tabs';
 import { Theme } from './astrology-sidebar';
-import { useWorkspaceCharts } from '../workspace-charts-context';
-import { HoroscopeWheel_COPIED_FROM_HOROSKOP } from './horoscope-wheel';
+import { useWorkspaceCharts } from '../providers/workspace-charts';
+import { HoroscopeWheel, type HoroscopeWheelBody } from './horoscope-wheel';
 
 interface HoroscopeDashboardProps {
 	theme: Theme;
 }
 
 interface PlanetPosition {
-	name: string;
+	id: string;
+	label: string;
 	icon: string;
-	degree: number;
-	sign: string;
+	degrees: number;
 	signIcon: string;
 	minutes: number;
 }
 
-const mockPositions: PlanetPosition[] = [
-	{ name: 'Sun', icon: '☉', degree: 9, sign: 'Sagittarius', signIcon: '♐', minutes: 47 },
-	{ name: 'Moon', icon: '☽', degree: 18, sign: 'Taurus', signIcon: '♉', minutes: 23 },
-	{ name: 'Mercury', icon: '☿', degree: 2, sign: 'Sagittarius', signIcon: '♐', minutes: 15 },
-	{ name: 'Venus', icon: '♀', degree: 26, sign: 'Scorpio', signIcon: '♏', minutes: 8 },
-	{ name: 'Mars', icon: '♂', degree: 14, sign: 'Aries', signIcon: '♈', minutes: 42 },
-	{ name: 'Jupiter', icon: '♃', degree: 21, sign: 'Pisces', signIcon: '♓', minutes: 56 },
-	{ name: 'Saturn', icon: '♄', degree: 28, sign: 'Capricorn', signIcon: '♑', minutes: 31 },
-	{ name: 'Uranus', icon: '♅', degree: 11, sign: 'Gemini', signIcon: '♊', minutes: 19 },
-	{ name: 'Neptune', icon: '♆', degree: 7, sign: 'Capricorn', signIcon: '♑', minutes: 4 },
-	{ name: 'Pluto', icon: '♇', degree: 8, sign: 'Scorpio', signIcon: '♏', minutes: 51 },
-	{ name: 'Asc', icon: '', degree: 14, sign: 'Scorpio', signIcon: '♏', minutes: 28 },
-	{ name: 'MC', icon: '', degree: 29, sign: 'Leo', signIcon: '♌', minutes: 13 },
-	{ name: 'Vx', icon: '', degree: 3, sign: 'Cancer', signIcon: '♋', minutes: 37 },
-	{ name: 'North Node', icon: '☊', degree: 19, sign: 'Taurus', signIcon: '♉', minutes: 45 },
-	{ name: 'Part of Spirit', icon: '⊕', degree: 12, sign: 'Virgo', signIcon: '♍', minutes: 22 },
-	{ name: 'Part of Fortune', icon: '⊗', degree: 24, sign: 'Capricorn', signIcon: '♑', minutes: 59 }
+const SIGN_GLYPHS = ['♈', '♉', '♊', '♋', '♌', '♍', '♎', '♏', '♐', '♑', '♒', '♓'];
+
+const POSITION_META: Record<string, { labelKey?: string; fallbackLabel: string; icon: string }> = {
+	sun: { labelKey: 'planet_sun', fallbackLabel: 'Sun', icon: '☉' },
+	moon: { labelKey: 'planet_moon', fallbackLabel: 'Moon', icon: '☽' },
+	mercury: { labelKey: 'planet_mercury', fallbackLabel: 'Mercury', icon: '☿' },
+	venus: { labelKey: 'planet_venus', fallbackLabel: 'Venus', icon: '♀' },
+	mars: { labelKey: 'planet_mars', fallbackLabel: 'Mars', icon: '♂' },
+	jupiter: { labelKey: 'planet_jupiter', fallbackLabel: 'Jupiter', icon: '♃' },
+	saturn: { labelKey: 'planet_saturn', fallbackLabel: 'Saturn', icon: '♄' },
+	uranus: { labelKey: 'planet_uranus', fallbackLabel: 'Uranus', icon: '♅' },
+	neptune: { labelKey: 'planet_neptune', fallbackLabel: 'Neptune', icon: '♆' },
+	pluto: { labelKey: 'planet_pluto', fallbackLabel: 'Pluto', icon: '♇' },
+	asc: { fallbackLabel: 'Asc', icon: 'Asc' },
+	desc: { fallbackLabel: 'Dsc', icon: 'Dsc' },
+	mc: { fallbackLabel: 'MC', icon: 'MC' },
+	ic: { fallbackLabel: 'IC', icon: 'IC' }
+};
+
+const WHEEL_BODY_ORDER: HoroscopeWheelBody[] = [
+	'sun',
+	'moon',
+	'mercury',
+	'venus',
+	'mars',
+	'jupiter',
+	'saturn',
+	'uranus',
+	'neptune',
+	'pluto'
 ];
 
-const mockHouses = [
-	{ house: 1, degree: 14, sign: 'Scorpio', signIcon: '♏', minutes: 28 },
-	{ house: 2, degree: 8, sign: 'Sagittarius', signIcon: '♐', minutes: 17 },
-	{ house: 3, degree: 2, sign: 'Capricorn', signIcon: '♑', minutes: 51 },
-	{ house: 4, degree: 29, sign: 'Capricorn', signIcon: '♑', minutes: 13 },
-	{ house: 5, degree: 28, sign: 'Aquarius', signIcon: '♒', minutes: 34 },
-	{ house: 6, degree: 1, sign: 'Aries', signIcon: '♈', minutes: 8 },
-	{ house: 7, degree: 14, sign: 'Taurus', signIcon: '♉', minutes: 28 },
-	{ house: 8, degree: 8, sign: 'Gemini', signIcon: '♊', minutes: 17 },
-	{ house: 9, degree: 2, sign: 'Cancer', signIcon: '♋', minutes: 51 },
-	{ house: 10, degree: 29, sign: 'Cancer', signIcon: '♋', minutes: 13 },
-	{ house: 11, degree: 28, sign: 'Leo', signIcon: '♌', minutes: 34 },
-	{ house: 12, degree: 1, sign: 'Libra', signIcon: '♎', minutes: 8 }
-];
+const SIDEBAR_POSITION_ORDER = [...WHEEL_BODY_ORDER, 'asc', 'mc', 'desc', 'ic'] as const;
+
+function normalizeLongitude(value: unknown): number | null {
+	if (typeof value === 'number' && Number.isFinite(value)) {
+		return ((value % 360) + 360) % 360;
+	}
+	if (value && typeof value === 'object') {
+		const longitude = (value as { longitude?: unknown }).longitude;
+		if (typeof longitude === 'number' && Number.isFinite(longitude)) {
+			return ((longitude % 360) + 360) % 360;
+		}
+	}
+	return null;
+}
+
+function longitudeToPosition(id: string, longitude: number, t: (key: string) => string): PlanetPosition {
+	const withinSign = longitude % 30;
+	const wholeDegrees = Math.floor(withinSign);
+	const roundedMinutes = Math.round((withinSign - wholeDegrees) * 60);
+	const degrees = roundedMinutes === 60 ? (wholeDegrees + 1) % 30 : wholeDegrees;
+	const minutes = roundedMinutes === 60 ? 0 : roundedMinutes;
+	const signIndex = Math.floor(longitude / 30) % 12;
+	const meta = POSITION_META[id] ?? { fallbackLabel: id, icon: id.slice(0, 3) };
+	return {
+		id,
+		label: meta.labelKey ? t(meta.labelKey) : meta.fallbackLabel,
+		icon: meta.icon,
+		degrees,
+		signIcon: SIGN_GLYPHS[signIndex] ?? '♈',
+		minutes
+	};
+}
+
+function parseChartDateTime(value?: string): Date | null {
+	if (!value?.trim()) return null;
+	const direct = new Date(value);
+	if (!Number.isNaN(direct.getTime())) return direct;
+
+	const match = value.match(
+		/^(\d{2})\/(\d{2})\/(\d{4})(?:\s+(\d{2}):(\d{2})(?::(\d{2}))?)?$/
+	);
+	if (!match) return null;
+
+	const [, dd, mm, yyyy, hh = '00', min = '00', ss = '00'] = match;
+	return new Date(
+		Number(yyyy),
+		Number(mm) - 1,
+		Number(dd),
+		Number(hh),
+		Number(min),
+		Number(ss)
+	);
+}
+
+function formatCoords(latitude?: number, longitude?: number) {
+	if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+	return `${latitude!.toFixed(4)}, ${longitude!.toFixed(4)}`;
+}
 
 export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
-	const { t } = useTranslation();
+	const { t, i18n } = useTranslation();
 	const { selectedChart } = useWorkspaceCharts();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 	const [profileCollapsed, setProfileCollapsed] = useState(false);
 	const [astrolabeCollapsed, setAstrolabeCollapsed] = useState(false);
 	const [positionsCollapsed, setPositionsCollapsed] = useState(false);
@@ -78,7 +137,6 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 
 	const isDark = theme === 'midnight' || theme === 'twilight';
 
-	const panelClass = cn('overflow-hidden', ft.settingsCard);
 	const borderColor = isDark ? 'border-white/10' : 'border-gray-200';
 	const textColor = ft.title;
 	const mutedColor = ft.muted;
@@ -92,6 +150,51 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 		ft.inputCompact,
 		'h-9 w-full min-w-0 flex-1 text-sm rounded-xl [color-scheme:inherit]'
 	);
+	const panelCardClass = 'gap-0 overflow-hidden transition-all duration-300';
+	const parsedChartDateTime = parseChartDateTime(selectedChart?.dateTime);
+	const chartTypeLabel =
+		selectedChart?.chartType === 'EVENT'
+			? t('new_type_event')
+			: selectedChart?.chartType === 'HORARY'
+				? t('new_type_horary')
+				: t('new_type_radix');
+	const chartDateLabel =
+		parsedChartDateTime?.toLocaleDateString(i18n.language, {
+			day: 'numeric',
+			month: 'short',
+			year: 'numeric'
+		}) ?? selectedChart?.dateTime?.split(' ')[0] ?? t('demo_chart_date_line');
+	const chartTimeLabel =
+		parsedChartDateTime?.toLocaleTimeString(i18n.language, {
+			hour: '2-digit',
+			minute: '2-digit',
+			second: '2-digit'
+		}) ?? selectedChart?.dateTime?.split(' ').slice(1).join(' ') ?? t('demo_chart_time_line');
+	const chartLocationLabel = selectedChart?.location || t('demo_chart_location');
+	const chartCoordsLabel =
+		formatCoords(selectedChart?.latitude, selectedChart?.longitude) ?? t('demo_chart_coords');
+	const chartHouseSystemLabel =
+		[selectedChart?.zodiacType, selectedChart?.houseSystem].filter(Boolean).join(' / ') ||
+		t('demo_chart_house_system');
+	const chartTags = selectedChart?.tags?.filter(Boolean) ?? [];
+	const computedPositions = (selectedChart?.computed?.positions ?? {}) as Record<string, unknown>;
+	const computedAxes = selectedChart?.computed?.axes;
+	const wheelBodyLongitudes = Object.fromEntries(
+		WHEEL_BODY_ORDER.map((body) => {
+			const longitude = normalizeLongitude(computedPositions[body]);
+			return [body, longitude];
+		}).filter((entry): entry is [HoroscopeWheelBody, number] => entry[1] !== null)
+	) as Partial<Record<HoroscopeWheelBody, number>>;
+	const axisLongitudes = {
+		asc: normalizeLongitude(computedAxes?.asc ?? computedPositions.asc) ?? undefined,
+		dsc: normalizeLongitude(computedAxes?.desc ?? computedPositions.desc) ?? undefined,
+		mc: normalizeLongitude(computedAxes?.mc ?? computedPositions.mc) ?? undefined,
+		ic: normalizeLongitude(computedAxes?.ic ?? computedPositions.ic) ?? undefined
+	};
+	const positionRows: PlanetPosition[] = SIDEBAR_POSITION_ORDER.flatMap((id) => {
+		const longitude = normalizeLongitude(computedPositions[id]);
+		return longitude === null ? [] : [longitudeToPosition(id, longitude, t)];
+	});
 
 	const getMaxAmount = () => {
 		if (timeUnit === 'sec' || timeUnit === 'min' || timeUnit === 'yr') return 10;
@@ -103,14 +206,11 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 	return (
 		<div className="flex h-screen flex-col overflow-hidden">
 			{/* Main Content - 3 Column Layout */}
-			<div className="flex flex-1 gap-4 overflow-hidden p-4">
-				{/* Spacer - pushes left column to center */}
-				<div className="min-w-0 flex-1"></div>
-
-				{/* Left Column - Fixed 288px (10% reduction from 320px) */}
-				<div className="flex w-[288px] flex-shrink-0 flex-col gap-4">
+			<div className="grid min-h-0 flex-1 grid-cols-[288px_minmax(0,1fr)_224px] gap-6 overflow-hidden p-4">
+				{/* Left Column */}
+				<div className="flex min-h-0 min-w-0 flex-col gap-4">
 					{/* Profile Panel */}
-					<div className={cn(panelClass, 'transition-all duration-300')}>
+					<Card variant="themed" theme={theme} className={panelCardClass}>
 						<div
 							className={`flex items-center justify-between px-4 py-3 ${hoverBg} cursor-pointer`}
 							onClick={() => setProfileCollapsed(!profileCollapsed)}
@@ -136,37 +236,29 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 						{!profileCollapsed && (
 							<div className="space-y-3 px-4 pb-4">
 								<div className={cn('space-y-1 text-sm', mutedColor)}>
-									<div>{t('new_type_radix')}</div>
-									<div>{t('demo_chart_date_line')}</div>
-									<div>{t('demo_chart_time_line')}</div>
-									<div>{t('demo_chart_location')}</div>
-									<div>{t('demo_chart_coords')}</div>
-									<div>{t('demo_chart_house_system')}</div>
+									<div>{chartTypeLabel}</div>
+									<div>{chartDateLabel}</div>
+									<div>{chartTimeLabel}</div>
+									<div>{chartLocationLabel}</div>
+									<div>{chartCoordsLabel}</div>
+									<div>{chartHouseSystemLabel}</div>
 								</div>
 
-								<div className="flex flex-wrap gap-2 pt-2">
-									<span className="rounded-lg bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
-										{t('demo_tag_family')}
-									</span>
-									<span
-										className={
-											isDark
-												? 'rounded-lg bg-purple-950/50 px-2 py-1 text-xs font-medium text-purple-200'
-												: 'rounded-lg bg-neutral-900 px-2 py-1 text-xs font-medium text-white'
-										}
-									>
-										{t('demo_tag_astrologer')}
-									</span>
-									<span className="rounded-lg bg-green-100 px-2 py-1 text-xs font-medium text-green-700 dark:bg-green-950/50 dark:text-green-200">
-										{t('demo_tag_writer')}
-									</span>
-								</div>
+								{chartTags.length > 0 ? (
+									<div className="flex flex-wrap gap-2 pt-2">
+										{chartTags.map((tag) => (
+											<Badge key={tag} variant="outline" className="px-2 py-1 text-xs">
+												{tag}
+											</Badge>
+										))}
+									</div>
+								) : null}
 							</div>
 						)}
-					</div>
+					</Card>
 
 					{/* Astrolabe Panel */}
-					<div className={cn(panelClass, 'transition-all duration-300')}>
+					<Card variant="themed" theme={theme} className={panelCardClass}>
 						<div
 							className={`flex items-center justify-between px-4 py-3 ${hoverBg} cursor-pointer`}
 							onClick={() => setAstrolabeCollapsed(!astrolabeCollapsed)}
@@ -229,7 +321,7 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								<div className={controlRow}>
 									<Input
 										readOnly
-										value={t('demo_astrolabe_date_value')}
+										value={chartDateLabel}
 										className={cn(
 											ft.input,
 											'flex-1 cursor-default border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0'
@@ -241,7 +333,7 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								<div className={controlRow}>
 									<Input
 										readOnly
-										value={t('demo_astrolabe_time_value')}
+										value={chartTimeLabel}
 										className={cn(
 											ft.input,
 											'flex-1 cursor-default border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0'
@@ -253,7 +345,7 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								<div className={controlRow}>
 									<Input
 										readOnly
-										value={t('demo_astrolabe_location_value')}
+										value={chartLocationLabel}
 										className={cn(
 											ft.input,
 											'flex-1 cursor-default border-0 bg-transparent px-0 py-0 text-sm shadow-none focus-visible:ring-0'
@@ -263,28 +355,29 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								</div>
 							</div>
 						)}
+					</Card>
+				</div>
+
+				{/* Center Column - Full middle track */}
+				<div className="flex min-h-0 min-w-0 items-center justify-center overflow-hidden">
+					<div className="aspect-square h-auto w-full max-w-[min(100%,72vh)]">
+						<HoroscopeWheel
+							theme={theme}
+							bodyLongitudes={wheelBodyLongitudes}
+							axisLongitudes={axisLongitudes}
+							useFallbackData={false}
+							showPlanetGlyphs
+							showAxisLines
+						/>
 					</div>
 				</div>
 
-				{/* Spacer - centers left column between sidebar and horoscope */}
-				<div className="min-w-0 flex-1"></div>
-
-				{/* Center Column - Flexible */}
-				<div className="flex items-center justify-center">
-					<HoroscopeWheel_COPIED_FROM_HOROSKOP theme={theme} />
-				</div>
-
-				{/* Spacer - centers right column */}
-				<div className="min-w-0 flex-1"></div>
-
-				{/* Right Column - Fixed 224px (30% reduction from 320px) */}
-				<div className="w-[224px] flex-shrink-0">
-					<div
-						className={cn(
-							panelClass,
-							'transition-all duration-300',
-							positionsCollapsed ? '' : 'flex h-full flex-col'
-						)}
+				{/* Right Column */}
+				<div className="min-h-0 min-w-0">
+					<Card
+						variant="themed"
+						theme={theme}
+						className={cn(panelCardClass, positionsCollapsed ? '' : 'flex h-full flex-col')}
 					>
 						<div
 							className={`flex items-center justify-between px-4 py-3 ${hoverBg} flex-shrink-0 cursor-pointer`}
@@ -311,60 +404,39 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 
 						{!positionsCollapsed && (
 							<div className="flex-1 overflow-y-auto px-4 pb-4">
-								<div className="space-y-1.5">
-									{/* Planets - only icons */}
-									{mockPositions.slice(0, 10).map((pos, idx) => (
-										<div key={idx} className={`flex items-center ${textColor} font-mono text-sm`}>
-											<span className="w-8 text-center text-base">{pos.icon}</span>
-											<span className="w-12 text-right">{pos.degree}°</span>
-											<span className="w-8 text-center text-base">{pos.signIcon}</span>
-											<span className="text-right">{pos.minutes}'</span>
+								{positionRows.length > 0 ? (
+									<>
+										<div className="space-y-1.5">
+											{positionRows.map((pos) => (
+												<div key={pos.id} className={`flex items-center ${textColor} font-mono text-sm`} title={pos.label}>
+													<span
+														className={cn(
+															'w-8 text-center',
+															pos.icon.length > 2 ? 'text-[10px] font-semibold' : 'text-base'
+														)}
+													>
+														{pos.icon}
+													</span>
+													<span className="w-12 text-right">{pos.degrees}°</span>
+													<span className="w-8 text-center text-base">{pos.signIcon}</span>
+													<span className="text-right">{pos.minutes}'</span>
+												</div>
+											))}
 										</div>
-									))}
-
-									{/* Points - Asc, MC, Vx */}
-									{mockPositions.slice(10, 13).map((pos, idx) => (
-										<div key={idx} className={`flex items-center ${textColor} font-mono text-sm`}>
-											<span className="w-8 text-center text-xs">{pos.name}</span>
-											<span className="w-12 text-right">{pos.degree}°</span>
-											<span className="w-8 text-center text-base">{pos.signIcon}</span>
-											<span className="text-right">{pos.minutes}'</span>
+										<div className={`text-center text-xs ${mutedColor} mt-3 italic`}>
+											{t('dashboard_positions_scroll_hint')}
 										</div>
-									))}
-
-									{/* North Node and Parts */}
-									{mockPositions.slice(13).map((pos, idx) => (
-										<div key={idx} className={`flex items-center ${textColor} font-mono text-sm`}>
-											<span className="w-8 text-center text-base">{pos.icon}</span>
-											<span className="w-12 text-right">{pos.degree}°</span>
-											<span className="w-8 text-center text-base">{pos.signIcon}</span>
-											<span className="text-right">{pos.minutes}'</span>
-										</div>
-									))}
-
-									{/* Houses */}
-									<div className={`border-t ${borderColor} mt-3 pt-2`}></div>
-									{mockHouses.map((house, idx) => (
-										<div key={idx} className={`flex items-center ${textColor} font-mono text-sm`}>
-											<span className="w-8 text-center">{house.house}.</span>
-											<span className="w-12 text-right">{house.degree}°</span>
-											<span className="w-8 text-center text-base">{house.signIcon}</span>
-											<span className="text-right">{house.minutes}'</span>
-										</div>
-									))}
-								</div>
-
-								{/* Scroll indicator at bottom */}
-								<div className={`text-center text-xs ${mutedColor} mt-3 italic`}>
-									{t('dashboard_positions_scroll_hint')}
-								</div>
+									</>
+								) : (
+									<div className={cn('py-6 text-sm', mutedColor)}>
+										{t('dashboard_no_positions')}
+									</div>
+								)}
 							</div>
 						)}
-					</div>
+					</Card>
 				</div>
 
-				{/* Spacer - balances layout */}
-				<div className="min-w-0 flex-1"></div>
 			</div>
 
 			<HoroscopeContextTabs theme={theme} />
@@ -372,7 +444,11 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 			{/* Position Selection Modal */}
 			{showPositionModal && (
 				<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
-					<div className={cn(panelClass, 'max-h-[80vh] w-[min(100vw-2rem,500px)]')}>
+					<Card
+						variant="themed"
+						theme={theme}
+						className="max-h-[80vh] w-[min(100vw-2rem,500px)] gap-0 overflow-hidden"
+					>
 						<div className={`flex items-center justify-between border-b px-6 py-4 ${borderColor}`}>
 							<h3 className={`text-lg font-medium ${textColor}`}>
 								{t('dashboard_positions_picker_title')}
@@ -404,7 +480,7 @@ export function HoroscopeDashboard({ theme }: HoroscopeDashboardProps) {
 								{t('sidebar_save')}
 							</button>
 						</div>
-					</div>
+					</Card>
 				</div>
 			)}
 		</div>

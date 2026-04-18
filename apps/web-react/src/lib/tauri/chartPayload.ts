@@ -19,6 +19,13 @@ export interface AppChart {
 	computed?: {
 		positions?: Record<string, number>;
 		aspects?: unknown[];
+		axes?: {
+			asc: number;
+			desc: number;
+			mc: number;
+			ic: number;
+		};
+		houseCusps?: number[];
 	};
 }
 
@@ -41,7 +48,7 @@ export const DEFAULT_WORKSPACE_DEFAULTS: WorkspaceDefaultsState = {
 	locationName: 'Prague',
 	locationLatitude: 50.0875,
 	locationLongitude: 14.4214,
-	engine: null,
+	engine: 'swisseph',
 	defaultBodies: [],
 	defaultAspects: []
 };
@@ -170,23 +177,37 @@ export function createBootstrapChart(defaults: WorkspaceDefaultsState): AppChart
 }
 
 export type NewHoroscopeChartKind = 'radix' | 'event' | 'horary';
+type LatitudeDirection = 'north' | 'south';
+type LongitudeDirection = 'east' | 'west';
 
 function parseOptionalNumber(value: string): number | undefined {
 	const n = Number(value.trim());
 	return Number.isFinite(n) ? n : undefined;
 }
 
+function applyDirection(
+	value: string,
+	positiveDirection: LatitudeDirection | LongitudeDirection,
+	selectedDirection: LatitudeDirection | LongitudeDirection
+): number | undefined {
+	const parsed = parseOptionalNumber(value);
+	if (parsed === undefined) return undefined;
+	const magnitude = Math.abs(parsed);
+	return selectedDirection === positiveDirection ? magnitude : -magnitude;
+}
+
 /** Build an in-memory chart from the New Horoscope form (before optional Tauri persist). */
 export function appChartFromNewHoroscopeInput(input: {
 	locationName: string;
 	chartKind: NewHoroscopeChartKind;
-	date: string;
-	time: string;
+	dateTime: Date;
 	location: string;
 	advancedLocation: string;
 	tags: string;
 	latitude: string;
 	longitude: string;
+	latitudeDir: LatitudeDirection;
+	longitudeDir: LongitudeDirection;
 	timezone: string;
 	advancedMode: boolean;
 	workspaceDefaults: WorkspaceDefaultsState;
@@ -200,13 +221,13 @@ export function appChartFromNewHoroscopeInput(input: {
 	const baseId = normalizeChartId(name);
 	const id = uniqueChartId(baseId, input.existingIds);
 
-	const dateTime = [input.date.trim(), input.time.trim()].filter(Boolean).join(' ');
+	const dateTime = `${formatDatePart(input.dateTime)} ${formatTimePart(input.dateTime)}`;
 
 	const locText = input.advancedMode ? input.advancedLocation.trim() : input.location.trim();
 	const location = locText || input.workspaceDefaults.locationName;
 
-	const lat = parseOptionalNumber(input.latitude);
-	const lon = parseOptionalNumber(input.longitude);
+	const lat = applyDirection(input.latitude, 'north', input.latitudeDir);
+	const lon = applyDirection(input.longitude, 'east', input.longitudeDir);
 
 	const tagList = input.tags
 		.split(',')
@@ -227,4 +248,14 @@ export function appChartFromNewHoroscopeInput(input: {
 		engine: input.workspaceDefaults.engine,
 		tags: tagList
 	};
+}
+
+function formatDatePart(value: Date): string {
+	return `${String(value.getDate()).padStart(2, '0')}/${String(value.getMonth() + 1).padStart(2, '0')}/${value.getFullYear()}`;
+}
+
+function formatTimePart(value: Date): string {
+	return [value.getHours(), value.getMinutes(), value.getSeconds()]
+		.map((n) => String(n).padStart(2, '0'))
+		.join(':');
 }

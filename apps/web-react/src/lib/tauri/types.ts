@@ -54,5 +54,19 @@ export interface ChartDetails {
 export interface ComputeChartResult {
 	positions: Record<string, number>;
 	aspects: unknown[];
+	axes?: {
+		asc: number;
+		desc: number;
+		mc: number;
+		ic: number;
+	};
+	house_cusps?: number[];
 	chart_id: string;
+}
+
+export interface ResolvedLocation {
+	query: string;
+	display_name: string;
+	latitude: number;
+	longitude: number;
 }

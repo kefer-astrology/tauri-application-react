@@ -16,7 +16,7 @@ import {
 } from './ui/select';
 import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import type { SettingsSectionId } from './settings-secondary-sidebar';
 import type { Theme } from './astrology-sidebar';
 import type { AppLanguage } from '@/lib/i18n';
@@ -25,7 +25,7 @@ import {
 	APP_SHELL_ICON_SET_OPTIONS,
 	readStoredAppShellIconSet,
 	type AppShellIconSetId
-} from '@/lib/app-shell-icons';
+} from '@/lib/app-shell';
 
 const LANG_BUBBLES: { code: AppLanguage; label: string }[] = [
 	{ code: 'cs', label: 'CS' },
@@ -59,9 +59,9 @@ const GLYPH_SET_OPTIONS = [
 		description: 'Current shared astrology glyph set.'
 	},
 	{
-		id: 'classic' as const,
-		label: 'Classic',
-		description: 'Kerykeion astrology glyph set.'
+		id: 'modern' as const,
+		label: 'Modern',
+		description: 'Alternate shared astrology glyph set.'
 	}
 ];
 
@@ -79,8 +79,8 @@ const GLYPH_SET_KEY = 'glyph_set';
 function readStoredGlyphSet(): (typeof GLYPH_SET_OPTIONS)[number]['id'] {
 	try {
 		const v = localStorage.getItem(GLYPH_SET_KEY);
-		if (v === 'default' || v === 'classic') return v;
-		if (v === 'kerykeion') return 'classic';
+		if (v === 'default' || v === 'modern') return v;
+		if (v === 'kerykeion' || v === 'classic') return 'modern';
 	} catch {
 		/* ignore */
 	}
@@ -103,7 +103,7 @@ export function SettingsView({
 	onAppShellIconSetChange
 }: SettingsViewProps) {
 	const { t, i18n } = useTranslation();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 	const [settingsChanged, setSettingsChanged] = useState(false);
 
 	const [defaultLocation, setDefaultLocation] = useState('');
@@ -124,7 +124,7 @@ export function SettingsView({
 	);
 
 	const onGlyphSetChange = useCallback((value: string) => {
-		const v = value === 'classic' || value === 'default' ? value : 'default';
+		const v = value === 'modern' || value === 'default' ? value : 'default';
 		setGlyphSetValue(v);
 		setSettingsChanged(true);
 		try {
@@ -176,17 +176,16 @@ export function SettingsView({
 
 	return (
 		<AppMainContentRoot className="min-h-full">
-			<AppMainContentContainer maxWidth="4xl">
+			<AppMainContentContainer layout="center-column">
 				<div className="flex min-h-0 w-full min-w-0 flex-col space-y-6">
 					<h1 className={cn('text-2xl font-semibold tracking-tight', ft.title)}>
 						{t('app_settings')}
 					</h1>
 
 					<Card
+						variant="ghost"
 						className={cn(
-							'flex min-h-[min(70vh,520px)] min-w-0 flex-col gap-0 rounded-xl p-0 shadow-none',
-							ft.settingsCard,
-							'border-0 shadow-none'
+							'flex min-h-[min(70vh,520px)] min-w-0 flex-col gap-0 rounded-xl p-0 shadow-none'
 						)}
 					>
 					<CardContent className="min-h-0 flex-1 overflow-y-auto p-6 md:p-8">

@@ -1,4 +1,4 @@
-import { useCallback, useLayoutEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import type { CSSProperties } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -6,7 +6,7 @@ import { AppMainContentContainer, AppMainContentRoot } from './components/app-ma
 import { AstrologySidebar, Theme } from './components/astrology-sidebar';
 import { Card, CardContent } from './components/ui/card';
 import { cn } from './components/ui/utils';
-import { getAppFormFieldTheme } from './components/form-field-theme';
+import { useAppFormFieldTheme } from './components/form-field-theme';
 import { NewHoroscope } from './components/new-horoscope';
 import {
 	type SettingsSectionId,
@@ -21,7 +21,6 @@ import { SettingsView } from './components/settings-view';
 import { OpenWorkspaceView } from './components/open-workspace-view';
 import { ExportWorkspaceView } from './components/export-workspace-view';
 import { Toaster } from './components/ui/sonner';
-import twilightBg from '@/assets/4dcbee9e5042848c83d74ae11e665f672e4fffc2.png';
 import { toast } from 'sonner';
 import {
 	BOOTSTRAP_CHART_ID,
@@ -31,8 +30,10 @@ import {
 	type AppChart,
 	type WorkspaceDefaultsState
 } from '@/lib/tauri/chartPayload';
-import { WorkspaceChartsProvider, type WorkspaceChartsValue } from './workspace-charts-context';
+import { WorkspaceChartsProvider, type WorkspaceChartsValue } from './providers/workspace-charts';
 import {
+	computeChart,
+	computeChartFromData,
 	initStorage,
 	openFolderDialog,
 	openWorkspaceFolder,
@@ -42,7 +43,7 @@ import type { WorkspaceDefaultsDto } from '@/lib/tauri/types';
 import {
 	readStoredAppShellIconSet,
 	type AppShellIconSetId
-} from '@/lib/app-shell-icons';
+} from '@/lib/app-shell';
 
 function mergeWorkspaceDefaults(
 	prev: WorkspaceDefaultsState,
@@ -77,7 +78,7 @@ export default function App() {
 	const [appShellIconSet, setAppShellIconSet] = useState<AppShellIconSetId>(() =>
 		readStoredAppShellIconSet()
 	);
-	const formTheme = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const formTheme = useAppFormFieldTheme(theme);
 	const [activeView, setActiveView] = useState<string>('horoskop');
 	const [activeTransitSection, setActiveTransitSection] = useState<TransitSection>('general');
 	const [activeSettingsSection, setActiveSettingsSection] = useState<SettingsSectionId>('jazyk');
@@ -89,6 +90,7 @@ export default function App() {
 	const [workspaceDefaults, setWorkspaceDefaults] = useState<WorkspaceDefaultsState>(() => ({
 		...DEFAULT_WORKSPACE_DEFAULTS
 	}));
+	const computingChartIdsRef = useRef<Set<string>>(new Set());
 
 	const addChart = useCallback((chart: AppChart) => {
 		setCharts((prev) => [...prev, chart]);
@@ -117,7 +119,44 @@ export default function App() {
 		[charts, selectedChartId, addChart, replaceChartsFromWorkspace]
 	);
 
+	const applyComputedChartResult = useCallback((chartId: string, result: Awaited<ReturnType<typeof computeChart>>) => {
+		setCharts((prev) =>
+			prev.map((chart) =>
+				chart.id === chartId
+					? {
+							...chart,
+							computed: {
+								positions: result.positions,
+								aspects: result.aspects,
+								axes: result.axes,
+								houseCusps: result.house_cusps
+							}
+						}
+					: chart
+			)
+		);
+	}, []);
+
+	const computeChartInBackground = useCallback(
+		async (chart: AppChart, targetWorkspacePath: string | null) => {
+			if (computingChartIdsRef.current.has(chart.id)) return;
+			computingChartIdsRef.current.add(chart.id);
+			try {
+				const result = targetWorkspacePath
+					? await computeChart(targetWorkspacePath, chart.id)
+					: await computeChartFromData(chartDataToComputePayload(chart, workspaceDefaults));
+				applyComputedChartResult(chart.id, result);
+			} catch (e) {
+				console.error(`Background compute failed for ${chart.id}:`, e);
+			} finally {
+				computingChartIdsRef.current.delete(chart.id);
+			}
+		},
+		[applyComputedChartResult, workspaceDefaults]
+	);
+
 	const handleChartCreated = async (chart: AppChart) => {
+		let persistedWorkspacePath: string | null = workspacePath;
 		if (workspacePath) {
 			try {
 				await invoke<string>('create_chart', {
@@ -135,6 +174,7 @@ export default function App() {
 		}
 		addChart(chart);
 		setActiveView('horoskop');
+		void computeChartInBackground(chart, persistedWorkspacePath);
 	};
 
 	const shadcnDark = theme === 'twilight' || theme === 'midnight';
@@ -142,6 +182,16 @@ export default function App() {
 	useLayoutEffect(() => {
 		document.documentElement.classList.toggle('dark', shadcnDark);
 	}, [shadcnDark]);
+
+	useEffect(() => {
+		if (workspacePath) return;
+		const bootstrapChart = charts.find((chart) => chart.id === BOOTSTRAP_CHART_ID);
+		if (!bootstrapChart) return;
+		const hasComputedPositions =
+			Object.keys(bootstrapChart.computed?.positions ?? {}).length > 0;
+		if (hasComputedPositions) return;
+		void computeChartInBackground(bootstrapChart, null);
+	}, [charts, computeChartInBackground, workspacePath]);
 
 	const runOpenWorkspaceFolder = useCallback(async () => {
 		try {
@@ -216,17 +266,10 @@ export default function App() {
 			bg: 'bg-white',
 			text: 'text-gray-900'
 		},
-		twilight: {
-			bg: '',
-			text: 'text-white',
-			style: {
-				backgroundImage: `url(${twilightBg})`,
-				backgroundSize: 'cover',
-				backgroundPosition: 'center',
-				backgroundRepeat: 'no-repeat',
-				backgroundAttachment: 'fixed'
-			}
-		},
+			twilight: {
+				bg: 'kefer-twilight-bg',
+				text: 'text-white'
+			},
 		midnight: {
 			bg: '',
 			text: 'text-white',
@@ -312,8 +355,8 @@ export default function App() {
 							/>
 						) : (
 							<AppMainContentRoot>
-								<AppMainContentContainer maxWidth="2xl">
-								<Card className={cn('gap-0 border-0 p-0 shadow-none', formTheme.settingsCard)}>
+								<AppMainContentContainer layout="center-column">
+								<Card variant="ghost" className="gap-0 p-0">
 									<CardContent className="space-y-3 p-6 md:p-8">
 										<h1 className={cn('text-xl font-semibold', formTheme.title)}>
 											{t('placeholder_view_title')}

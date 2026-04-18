@@ -1,8 +1,7 @@
 /**
  * Horoscope wheel SVG — single source shared with Horoskop tab (`HoroscopeDashboard`).
- * Developer handoff id: HoroscopeWheel_COPIED_FROM_HOROSKOP
+ * Developer handoff id: HoroscopeWheel
  */
-import React from 'react';
 import type { Theme } from './astrology-sidebar';
 
 export type HoroscopeWheelBody =
@@ -40,7 +39,7 @@ const zodiacSigns = [
 ];
 
 /** Ecliptic longitudes (°) — aligned with `horoscope-dashboard` mock radix for handoff */
-const BODY_LONGITUDE: Record<HoroscopeWheelBody, number> = {
+const DEFAULT_BODY_LONGITUDE: Record<HoroscopeWheelBody, number> = {
 	sun: 240 + 9 + 47 / 60,
 	moon: 30 + 18 + 23 / 60,
 	mercury: 240 + 2 + 15 / 60,
@@ -60,6 +59,8 @@ export const HOROSCOPE_WHEEL_AXIS = {
 	mc: 90 + 29 + 13 / 60,
 	ic: 270 + 29 + 13 / 60
 };
+
+type HoroscopeWheelAxis = typeof HOROSCOPE_WHEEL_AXIS;
 
 /** Which side of ASC–DSC (only planets; same lon math as wheel). */
 export function planetEastWestHemisphere(eclipticDeg: number): 'east' | 'west' {
@@ -84,6 +85,9 @@ function polar(cx: number, cy: number, r: number, eclipticDeg: number) {
 
 export interface HoroscopeWheelProps {
 	theme: Theme;
+	bodyLongitudes?: Partial<Record<HoroscopeWheelBody, number>>;
+	axisLongitudes?: Partial<HoroscopeWheelAxis>;
+	useFallbackData?: boolean;
 	/** Bodies that receive a soft halo (badge hover, singleton, focal planets, …) */
 	highlightBodies?: ReadonlySet<HoroscopeWheelBody>;
 	/** When true, non-highlighted planets/icons are dimmed (hemisphere / focus preview) */
@@ -97,8 +101,11 @@ export interface HoroscopeWheelProps {
 	className?: string;
 }
 
-export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
+export function HoroscopeWheel({
 	theme,
+	bodyLongitudes,
+	axisLongitudes,
+	useFallbackData = true,
 	highlightBodies = new Set(),
 	dimNonHighlighted = false,
 	hemisphereOverlay = 'off',
@@ -115,6 +122,21 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 	const innerCenterRing = 184;
 	const innerCenterCore = 152;
 	const planetRadius = (innerRadius + innerCenterRing) / 2 - 8;
+	const wheelBodyLongitudes = useFallbackData
+		? { ...DEFAULT_BODY_LONGITUDE, ...bodyLongitudes }
+		: (bodyLongitudes ?? {});
+	const wheelAxisLongitudes = useFallbackData
+		? { ...HOROSCOPE_WHEEL_AXIS, ...axisLongitudes }
+		: (axisLongitudes ?? {});
+	const axisAsc = wheelAxisLongitudes.asc;
+	const axisDsc = wheelAxisLongitudes.dsc;
+	const axisMc = wheelAxisLongitudes.mc;
+	const axisIc = wheelAxisLongitudes.ic;
+	const hasAxisGeometry =
+		typeof axisAsc === 'number' &&
+		typeof axisDsc === 'number' &&
+		typeof axisMc === 'number' &&
+		typeof axisIc === 'number';
 
 	const strokeMain = isDark ? 'rgba(255,255,255,0.5)' : '#000000';
 	const strokeSoft = isDark ? 'rgba(255,255,255,0.4)' : '#000000';
@@ -148,10 +170,10 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 		{ key: 'pluto', icon: '♇' }
 	];
 
-	const pAsc = polar(center, center, outerRadius + 4, HOROSCOPE_WHEEL_AXIS.asc);
-	const pDsc = polar(center, center, outerRadius + 4, HOROSCOPE_WHEEL_AXIS.dsc);
-	const pMc = polar(center, center, outerRadius + 4, HOROSCOPE_WHEEL_AXIS.mc);
-	const pIc = polar(center, center, outerRadius + 4, HOROSCOPE_WHEEL_AXIS.ic);
+	const pAsc = hasAxisGeometry ? polar(center, center, outerRadius + 4, axisAsc) : null;
+	const pDsc = hasAxisGeometry ? polar(center, center, outerRadius + 4, axisDsc) : null;
+	const pMc = hasAxisGeometry ? polar(center, center, outerRadius + 4, axisMc) : null;
+	const pIc = hasAxisGeometry ? polar(center, center, outerRadius + 4, axisIc) : null;
 
 	const overlayTint = isDark ? 'rgba(59, 130, 246, 0.14)' : 'rgba(37, 99, 235, 0.12)';
 	const overlayTintAlt = isDark ? 'rgba(244, 63, 94, 0.12)' : 'rgba(244, 63, 94, 0.1)';
@@ -167,10 +189,10 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 	 * Complementary semicircles along ASC–DSC and MC–IC. Sweep flags are tuned so
 	 * “east / north” match prototype overlays (handoff — refine with real cusps later).
 	 */
-	const pathEastWestEast = arcWedge(HOROSCOPE_WHEEL_AXIS.dsc, HOROSCOPE_WHEEL_AXIS.asc, 1);
-	const pathEastWestWest = arcWedge(HOROSCOPE_WHEEL_AXIS.dsc, HOROSCOPE_WHEEL_AXIS.asc, 0);
-	const pathMcIcNorth = arcWedge(HOROSCOPE_WHEEL_AXIS.ic, HOROSCOPE_WHEEL_AXIS.mc, 1);
-	const pathMcIcSouth = arcWedge(HOROSCOPE_WHEEL_AXIS.ic, HOROSCOPE_WHEEL_AXIS.mc, 0);
+	const pathEastWestEast = hasAxisGeometry ? arcWedge(axisDsc, axisAsc, 1) : null;
+	const pathEastWestWest = hasAxisGeometry ? arcWedge(axisDsc, axisAsc, 0) : null;
+	const pathMcIcNorth = hasAxisGeometry ? arcWedge(axisIc, axisMc, 1) : null;
+	const pathMcIcSouth = hasAxisGeometry ? arcWedge(axisIc, axisMc, 0) : null;
 
 	const overlayPath =
 		hemisphereOverlay === 'asc-dsc-east'
@@ -191,7 +213,7 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 
 	return (
 		<svg
-			data-handoff="HoroscopeWheel_COPIED_FROM_HOROSKOP"
+			data-handoff="HoroscopeWheel"
 			width="100%"
 			height="100%"
 			viewBox={`0 0 ${wheelSize} ${wheelSize}`}
@@ -298,7 +320,7 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 			})}
 
 			{/* Layer: Hemispheric Overlay — above zodiac ring, under inner radix (Informace) */}
-			{showAxisLines && (
+			{showAxisLines && hasAxisGeometry && (
 				<g data-handoff="Layer_HemisphericOverlay" style={{ pointerEvents: 'none' }}>
 					{overlayPath && (
 						<path
@@ -328,7 +350,7 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 			/>
 
 			{/* Axis lines for hemisphere boundaries */}
-			{showAxisLines && (
+			{showAxisLines && hasAxisGeometry && pAsc && pDsc && pMc && pIc && (
 				<g data-handoff="Layer_AxisLines" stroke={isDark ? 'rgba(96,165,250,0.85)' : 'rgba(37,99,235,0.75)'}>
 					<line
 						x1={pAsc.x}
@@ -356,10 +378,13 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 				opacity={showAspectLines ? 0.45 : 0}
 				style={{ pointerEvents: 'none' }}
 			>
-				{aspectPairs.map(([a, b]) => {
-					const pa = polar(center, center, planetRadius, BODY_LONGITUDE[a]);
-					const pb = polar(center, center, planetRadius, BODY_LONGITUDE[b]);
-					return (
+				{aspectPairs.flatMap(([a, b]) => {
+					const aLon = wheelBodyLongitudes[a];
+					const bLon = wheelBodyLongitudes[b];
+					if (typeof aLon !== 'number' || typeof bLon !== 'number') return [];
+					const pa = polar(center, center, planetRadius, aLon);
+					const pb = polar(center, center, planetRadius, bLon);
+					return [(
 						<line
 							key={`${a}-${b}`}
 							x1={pa.x}
@@ -369,15 +394,16 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 							stroke={isDark ? 'rgba(250,204,21,0.6)' : 'rgba(161,98,7,0.55)'}
 							strokeWidth="1.2"
 						/>
-					);
+					)];
 				})}
 			</g>
 
 			{/* Planets */}
 			{showPlanetGlyphs && (
 				<g data-handoff="Layer_PlanetGlyphs">
-					{bodies.map(({ key, icon }) => {
-						const lon = BODY_LONGITUDE[key];
+					{bodies.flatMap(({ key, icon }) => {
+						const lon = wheelBodyLongitudes[key];
+						if (typeof lon !== 'number') return [];
 						const p = polar(center, center, planetRadius, lon);
 						const hi = highlightBodies.has(key);
 						let hemiDim = 1;
@@ -400,7 +426,7 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 									: dimNonHighlighted
 										? 0.62
 										: 1) * hemiDim;
-						return (
+						return [(
 							<g
 								key={key}
 								data-handoff={`Planet_${key}`}
@@ -428,7 +454,7 @@ export function HoroscopeWheel_COPIED_FROM_HOROSKOP({
 									{icon}
 								</text>
 							</g>
-						);
+						)];
 					})}
 				</g>
 			)}

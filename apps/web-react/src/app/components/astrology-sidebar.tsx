@@ -1,19 +1,9 @@
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
-import {
-	Sunrise,
-	Sun,
-	Sunset,
-	Moon
-} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { cn } from './ui/utils';
-import type { AppShellIconId, AppShellIconSetId } from '@/lib/app-shell-icons';
-import {
-	renderAppShellIcon,
-	renderAppShellLogoFull,
-	renderAppShellLogoMark
-} from '@/lib/app-shell-icons';
+import { AppShellIcon, AppShellLogoFull, AppShellLogoMark } from '@/ui/app-shell-icon';
+import type { AppShellIconId, AppShellIconSetId } from '@/lib/app-shell';
 
 export type Theme = 'sunrise' | 'noon' | 'twilight' | 'midnight';
 
@@ -49,12 +39,7 @@ const settingsNavDefs = [
 	{ id: 'nastaveni', labelKey: 'settings', iconId: 'settings' as const }
 ] as const;
 
-const themeIconConfig = {
-	sunrise: { icon: Sunrise },
-	noon: { icon: Sun },
-	twilight: { icon: Sunset },
-	midnight: { icon: Moon }
-} satisfies Record<Theme, { icon: typeof Sunrise }>;
+const themeOrder: Theme[] = ['sunrise', 'noon', 'twilight', 'midnight'];
 
 export type SidebarThemeBlock = {
 	bg: string;
@@ -62,9 +47,7 @@ export type SidebarThemeBlock = {
 	text: string;
 	hover: string;
 	active: string;
-	activeIndicator: string;
 	separator: string;
-	logoGradient: string;
 	themeIconColor: string;
 	customStyle?: CSSProperties;
 };
@@ -77,9 +60,7 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		text: 'text-gray-900',
 		hover: 'hover:bg-sky-100',
 		active: 'bg-sky-400 text-white',
-		activeIndicator: 'bg-sky-600',
 		separator: 'bg-sky-200',
-		logoGradient: 'from-sky-400 to-cyan-500',
 		themeIconColor: '#1f2937'
 	},
 	noon: {
@@ -88,9 +69,7 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		text: 'text-gray-700',
 		hover: 'hover:bg-gray-100',
 		active: 'bg-neutral-900 text-white',
-		activeIndicator: 'bg-neutral-900',
 		separator: 'bg-gray-200',
-		logoGradient: 'from-neutral-700 to-neutral-900',
 		themeIconColor: '#374151'
 	},
 	twilight: {
@@ -99,9 +78,7 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		text: 'text-white',
 		hover: 'hover:bg-white/10',
 		active: 'bg-indigo-600 text-white',
-		activeIndicator: 'bg-indigo-500',
 		separator: 'bg-white/25',
-		logoGradient: 'from-indigo-600 to-purple-600',
 		themeIconColor: '#ffffff',
 		customStyle: {
 			background:
@@ -116,9 +93,7 @@ export const sidebarThemeStyles: Record<Theme, SidebarThemeBlock> = {
 		text: 'text-slate-200',
 		hover: 'hover:bg-slate-700/40',
 		active: 'bg-indigo-600 text-white',
-		activeIndicator: 'bg-indigo-500',
 		separator: 'bg-slate-700/30',
-		logoGradient: 'from-indigo-500 to-purple-600',
 		themeIconColor: '#cbd5e1',
 		customStyle: {
 			background:
@@ -177,16 +152,20 @@ export function AstrologySidebar({
 	const renderSharedIcon = (
 		iconId: AppShellIconId,
 		label: string,
-		className: string
+		className: string,
+		size = 30
 	) => (
-		renderAppShellIcon({
-			iconId,
-			iconSet: appShellIconSet,
-			title: label,
-			className,
-			size: 30
-		})
+		<AppShellIcon
+			iconId={iconId}
+			iconSet={appShellIconSet}
+			title={label}
+			className={className}
+			size={size}
+		/>
 	);
+
+	const renderThemeIcon = (iconId: AppShellIconId, label: string) =>
+		renderSharedIcon(iconId, label, 'h-5 w-5', 20);
 
 	return (
 		<aside
@@ -204,30 +183,32 @@ export function AstrologySidebar({
 		>
 			{/* Logo Area */}
 			<div className={cn('px-3', isExpanded ? 'mb-2.5' : 'mb-2')}>
-				<div className={cn('flex items-center', isExpanded ? 'justify-start' : 'justify-center')}>
-					{isExpanded ? (
-						<div className={cn('flex items-center gap-2.5', themeStyle.text)}>
-							{renderAppShellLogoMark({
-								iconSet: appShellIconSet,
-								theme: currentTheme,
-								className: 'h-7 w-7',
-								size: 28
-							})}
-							{renderAppShellLogoFull({
-								iconSet: appShellIconSet,
-								theme: currentTheme,
-								className: themeStyle.text,
-								iconSize: 28
-							})}
-						</div>
-					) : (
-						renderAppShellLogoMark({
-							iconSet: appShellIconSet,
-							theme: currentTheme,
-							className: themeStyle.text,
-							size: 32
-						})
+				<div
+					className={cn(
+						'flex items-center',
+						isExpanded ? 'min-h-10 justify-start px-2.5' : 'justify-center'
 					)}
+				>
+						{isExpanded ? (
+							<div className={cn('flex items-center gap-2.5', themeStyle.text)}>
+								<AppShellLogoMark
+									iconSet={appShellIconSet}
+									className="h-7 w-7"
+									size={28}
+								/>
+								<AppShellLogoFull
+									iconSet={appShellIconSet}
+									className={themeStyle.text}
+									iconSize={28}
+								/>
+							</div>
+						) : (
+							<AppShellLogoMark
+								iconSet={appShellIconSet}
+								className={themeStyle.text}
+								size={32}
+							/>
+						)}
 				</div>
 			</div>
 
@@ -354,7 +335,7 @@ export function AstrologySidebar({
 										: 'rgba(243, 244, 246, 0.5)'
 							}}
 						>
-							{(Object.keys(themeIconConfig) as Theme[]).map((themeKey) => {
+							{themeOrder.map((themeKey) => {
 								const isSelected = currentTheme === themeKey;
 								const themeIconId = `theme-${themeKey}` as AppShellIconId;
 
@@ -363,7 +344,7 @@ export function AstrologySidebar({
 										key={themeKey}
 										onClick={() => handleThemeClick(themeKey)}
 										className={cn(
-											'flex size-7 shrink-0 items-center justify-center rounded-sm p-0 transition-all duration-200',
+											'flex size-9 shrink-0 items-center justify-center rounded-sm p-0 transition-all duration-200',
 											isSelected
 												? currentTheme === 'twilight' || currentTheme === 'midnight'
 													? 'bg-indigo-600 shadow-sm'
@@ -373,11 +354,11 @@ export function AstrologySidebar({
 												: cn('hover:bg-opacity-50', themeStyle.hover)
 										)}
 										title={themeLabels[themeKey]}
-									>
-										<span style={{ color: isSelected ? '#FFFFFF' : themeStyle.themeIconColor }}>
-											{renderSharedIcon(themeIconId, themeLabels[themeKey], 'h-[13px] w-[13px]')}
-										</span>
-									</button>
+										>
+											<span style={{ color: isSelected ? '#FFFFFF' : themeStyle.themeIconColor }}>
+												{renderThemeIcon(themeIconId, themeLabels[themeKey])}
+											</span>
+										</button>
 								);
 							})}
 						</div>
@@ -392,15 +373,14 @@ export function AstrologySidebar({
 							'mx-auto h-11 w-11 px-0 py-0'
 						)}
 						title={t('sidebar_theme_cycle_hint', { theme: themeLabels[currentTheme] })}
-					>
-						<span style={{ color: themeStyle.themeIconColor }}>
-							{renderSharedIcon(
-								`theme-${currentTheme}` as AppShellIconId,
-								themeLabels[currentTheme],
-								'h-[13px] w-[13px]'
-							)}
-						</span>
-					</button>
+						>
+							<span style={{ color: themeStyle.themeIconColor }}>
+								{renderThemeIcon(
+									`theme-${currentTheme}` as AppShellIconId,
+									themeLabels[currentTheme]
+								)}
+							</span>
+						</button>
 				)}
 			</div>
 		</aside>

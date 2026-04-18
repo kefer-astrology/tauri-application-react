@@ -9,9 +9,9 @@ import {
 } from './ui/breadcrumb';
 import { Button } from './ui/button';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import type { Theme } from './astrology-sidebar';
-import { useWorkspaceCharts } from '../workspace-charts-context';
+import { useWorkspaceCharts } from '../providers/workspace-charts';
 
 type HoroscopeContextTabsProps = {
 	theme: Theme;
@@ -22,7 +22,7 @@ type HoroscopeContextTabsProps = {
  */
 export function HoroscopeContextTabs({ theme }: HoroscopeContextTabsProps) {
 	const { charts, selectedChartId, setSelectedChartId } = useWorkspaceCharts();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 
 	return (
 		<div className={ft.contextRail}>

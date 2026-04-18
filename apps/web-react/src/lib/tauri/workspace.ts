@@ -2,6 +2,7 @@ import { invoke } from '@tauri-apps/api/core';
 import type {
 	ChartDetails,
 	ComputeChartResult,
+	ResolvedLocation,
 	WorkspaceDefaultsDto,
 	WorkspaceInfo
 } from './types';
@@ -35,6 +36,16 @@ export async function computeChart(
 	chartId: string
 ): Promise<ComputeChartResult> {
 	return invoke<ComputeChartResult>('compute_chart', { workspacePath, chartId });
+}
+
+export async function computeChartFromData(
+	chartJson: Record<string, unknown>
+): Promise<ComputeChartResult> {
+	return invoke<ComputeChartResult>('compute_chart_from_data', { chartJson });
+}
+
+export async function resolveLocation(query: string): Promise<ResolvedLocation> {
+	return invoke<ResolvedLocation>('resolve_location', { query });
 }
 
 export async function saveWorkspace(
@@ -75,7 +86,12 @@ export async function openWorkspaceFolder(
 	for (const chart of charts) {
 		try {
 			const result = await computeChart(workspace.path, chart.id);
-			chart.computed = { positions: result.positions, aspects: result.aspects };
+			chart.computed = {
+				positions: result.positions,
+				aspects: result.aspects,
+				axes: result.axes,
+				houseCusps: result.house_cusps
+			};
 		} catch (err) {
 			console.error(`compute_chart failed for ${chart.id}:`, err);
 		}

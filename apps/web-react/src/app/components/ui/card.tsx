@@ -1,15 +1,54 @@
 import * as React from 'react';
+import { cva, type VariantProps } from 'class-variance-authority';
 
 import { cn } from './utils';
 
-function Card({ className, ...props }: React.ComponentProps<'div'>) {
+export type CardTheme = 'sunrise' | 'noon' | 'twilight' | 'midnight';
+
+const themedCardClasses: Record<CardTheme, string> = {
+	sunrise: 'border-sky-200/90 bg-white/90 text-sky-950 shadow-sm backdrop-blur-sm',
+	noon: 'border-gray-200 bg-white/95 text-gray-900 shadow-sm',
+	twilight: 'border-blue-700/50 bg-blue-900/35 text-white backdrop-blur-md',
+	midnight: 'border-blue-900/50 bg-blue-950/50 text-slate-100 backdrop-blur-md'
+};
+
+const cardVariants = cva('flex flex-col gap-6 rounded-2xl', {
+	variants: {
+		variant: {
+			default: 'bg-card text-card-foreground border',
+			ghost: 'border-0 bg-transparent text-inherit shadow-none',
+			themed: 'overflow-hidden border shadow-lg'
+		},
+		theme: {
+			default: '',
+			sunrise: '',
+			noon: '',
+			twilight: '',
+			midnight: ''
+		}
+	},
+	compoundVariants: [
+		{ variant: 'themed', theme: 'sunrise', className: themedCardClasses.sunrise },
+		{ variant: 'themed', theme: 'noon', className: themedCardClasses.noon },
+		{ variant: 'themed', theme: 'twilight', className: themedCardClasses.twilight },
+		{ variant: 'themed', theme: 'midnight', className: themedCardClasses.midnight }
+	],
+	defaultVariants: {
+		variant: 'default',
+		theme: 'default'
+	}
+});
+
+function Card({
+	className,
+	variant,
+	theme,
+	...props
+}: React.ComponentProps<'div'> & VariantProps<typeof cardVariants>) {
 	return (
 		<div
 			data-slot="card"
-			className={cn(
-				'bg-card text-card-foreground flex flex-col gap-6 rounded-2xl border',
-				className
-			)}
+			className={cn(cardVariants({ variant, theme }), className)}
 			{...props}
 		/>
 	);

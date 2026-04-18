@@ -1,11 +1,12 @@
-import React, { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ChevronDown } from 'lucide-react';
+import { Card, CardContent } from './ui/card';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { type AppFormFieldTheme, useAppFormFieldTheme } from './form-field-theme';
 import type { TransitSection } from './transits-secondary-sidebar';
 import { TransitsBodiesConfig } from './transits-bodies-config';
 import type { Theme } from './astrology-sidebar';
@@ -17,21 +18,19 @@ interface TransitsContentProps {
 
 type DropdownOption = { id: string; label: string };
 
-type FormFieldTheme = ReturnType<typeof getAppFormFieldTheme>;
-
 interface CustomDropdownProps {
 	label: string;
 	value: string;
 	options: DropdownOption[];
 	onChange: (id: string) => void;
-	ft: FormFieldTheme;
+	ft: AppFormFieldTheme;
 }
 
 function CustomDropdown({ label, value, options, onChange, ft }: CustomDropdownProps) {
-	const [isOpen, setIsOpen] = React.useState(false);
-	const dropdownRef = React.useRef<HTMLDivElement>(null);
+	const [isOpen, setIsOpen] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 
-	React.useEffect(() => {
+	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
 				setIsOpen(false);
@@ -113,11 +112,11 @@ const MINOR_ASPECT_ROWS: { labelKey: string; angle: string; orb: string }[] = [
 
 export function TransitsContent({ section, theme }: TransitsContentProps) {
 	const { t } = useTranslation();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 
-	const [selectedTypeId, setSelectedTypeId] = React.useState('transit');
-	const [periodModeId, setPeriodModeId] = React.useState('current');
-	const [checkboxes, setCheckboxes] = React.useState({
+	const [selectedTypeId, setSelectedTypeId] = useState('transit');
+	const [periodModeId, setPeriodModeId] = useState('current');
+	const [checkboxes, setCheckboxes] = useState({
 		houseTransitions: false,
 		signTransitions: false,
 		transitLimits: false,
@@ -148,13 +147,8 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 		switch (section) {
 			case 'general':
 				return (
-					<div
-						className={cn(
-							'flex w-full flex-col space-y-6 rounded-xl p-6 md:p-8',
-							ft.settingsCard,
-							'border-0 shadow-none'
-						)}
-					>
+					<Card variant="ghost" className="w-full rounded-xl">
+						<CardContent className="flex flex-col space-y-6 p-6 md:p-8">
 							<div>
 								<h1 className={cn('mb-2 text-2xl font-semibold', ft.title)}>
 									{t('transits_heading_general')}
@@ -399,7 +393,8 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 									{t('button_ok')}
 								</button>
 							</div>
-					</div>
+						</CardContent>
+					</Card>
 				);
 
 			case 'transiting-bodies':
@@ -430,66 +425,70 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 							<p className={cn('text-sm', ft.muted)}>{t('transits_aspects_subtitle')}</p>
 						</div>
 
-						<div className={cn('rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}>
-							<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
-								{t('transits_aspects_major')}
-							</h3>
-							<div className="space-y-4">
-								{MAJOR_ASPECT_ROWS.map((aspect) => (
-									<div key={aspect.labelKey} className="flex items-center gap-4">
-										<label className="flex flex-1 cursor-pointer items-center gap-3">
-											<input
-												type="checkbox"
-												className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
-												defaultChecked
-											/>
-											<span className={cn('text-sm font-medium', ft.bodyText)}>
-												{t(aspect.labelKey)} {aspect.glyph}
-											</span>
-											<span className={cn('text-xs', ft.muted)}>{aspect.angle}</span>
-										</label>
-										<div className="flex items-center gap-2">
-											<span className={cn('text-xs', ft.label)}>{t('label_orb')}:</span>
-											<Input
-												type="text"
-												defaultValue={aspect.orb}
-												className={cn(ft.inputCompact, 'h-9 w-16')}
-											/>
+						<Card variant="ghost" className="rounded-xl">
+							<CardContent className="p-6 md:p-8">
+								<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
+									{t('transits_aspects_major')}
+								</h3>
+								<div className="space-y-4">
+									{MAJOR_ASPECT_ROWS.map((aspect) => (
+										<div key={aspect.labelKey} className="flex items-center gap-4">
+											<label className="flex flex-1 cursor-pointer items-center gap-3">
+												<input
+													type="checkbox"
+													className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
+													defaultChecked
+												/>
+												<span className={cn('text-sm font-medium', ft.bodyText)}>
+													{t(aspect.labelKey)} {aspect.glyph}
+												</span>
+												<span className={cn('text-xs', ft.muted)}>{aspect.angle}</span>
+											</label>
+											<div className="flex items-center gap-2">
+												<span className={cn('text-xs', ft.label)}>{t('label_orb')}:</span>
+												<Input
+													type="text"
+													defaultValue={aspect.orb}
+													className={cn(ft.inputCompact, 'h-9 w-16')}
+												/>
+											</div>
 										</div>
-									</div>
-								))}
-							</div>
-						</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
 
-						<div className={cn('rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}>
-							<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
-								{t('transits_aspects_minor')}
-							</h3>
-							<div className="space-y-4">
-								{MINOR_ASPECT_ROWS.map((aspect) => (
-									<div key={aspect.labelKey} className="flex items-center gap-4">
-										<label className="flex flex-1 cursor-pointer items-center gap-3">
-											<input
-												type="checkbox"
-												className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
-											/>
-											<span className={cn('text-sm font-medium', ft.bodyText)}>
-												{t(aspect.labelKey)}
-											</span>
-											<span className={cn('text-xs', ft.muted)}>{aspect.angle}</span>
-										</label>
-										<div className="flex items-center gap-2">
-											<span className={cn('text-xs', ft.label)}>{t('label_orb')}:</span>
-											<Input
-												type="text"
-												defaultValue={aspect.orb}
-												className={cn(ft.inputCompact, 'h-9 w-16')}
-											/>
+						<Card variant="ghost" className="rounded-xl">
+							<CardContent className="p-6 md:p-8">
+								<h3 className={cn('mb-4 text-lg font-semibold', ft.title)}>
+									{t('transits_aspects_minor')}
+								</h3>
+								<div className="space-y-4">
+									{MINOR_ASPECT_ROWS.map((aspect) => (
+										<div key={aspect.labelKey} className="flex items-center gap-4">
+											<label className="flex flex-1 cursor-pointer items-center gap-3">
+												<input
+													type="checkbox"
+													className={cn('h-4 w-4 rounded', ft.checkboxAccent)}
+												/>
+												<span className={cn('text-sm font-medium', ft.bodyText)}>
+													{t(aspect.labelKey)}
+												</span>
+												<span className={cn('text-xs', ft.muted)}>{aspect.angle}</span>
+											</label>
+											<div className="flex items-center gap-2">
+												<span className={cn('text-xs', ft.label)}>{t('label_orb')}:</span>
+												<Input
+													type="text"
+													defaultValue={aspect.orb}
+													className={cn(ft.inputCompact, 'h-9 w-16')}
+												/>
+											</div>
 										</div>
-									</div>
-								))}
-							</div>
-						</div>
+									))}
+								</div>
+							</CardContent>
+						</Card>
 					</div>
 				);
 		}
@@ -499,7 +498,10 @@ export function TransitsContent({ section, theme }: TransitsContentProps) {
 
 	return (
 		<AppMainContentRoot>
-			<AppMainContentContainer maxWidth={isWideBodiesSection ? '6xl' : '4xl'}>
+			<AppMainContentContainer
+				layout="center-column"
+				maxWidth={isWideBodiesSection ? '6xl' : '4xl'}
+			>
 				{renderContent()}
 			</AppMainContentContainer>
 		</AppMainContentRoot>

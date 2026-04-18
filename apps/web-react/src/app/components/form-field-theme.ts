@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { cn } from './ui/utils';
 import type { Theme } from './astrology-sidebar';
 
@@ -84,17 +85,6 @@ export function getAppFormFieldTheme(theme: Theme) {
 			: isSunrise
 				? 'focus:bg-sky-100 focus:text-sky-950 data-[highlighted]:bg-sky-100 data-[highlighted]:text-sky-950'
 				: '';
-
-	const settingsCard = cn(
-		'overflow-hidden rounded-2xl border shadow-lg',
-		isDark
-			? 'border-blue-900/50 bg-blue-950/50 text-slate-100 backdrop-blur-md'
-			: isTwilight
-				? 'border-blue-700/50 bg-blue-900/35 text-white backdrop-blur-md'
-				: isSunrise
-					? 'border-sky-200/90 bg-white/90 text-sky-950 shadow-sm backdrop-blur-sm'
-					: 'border-gray-200 bg-white/95 text-gray-900 shadow-sm'
-	);
 
 	const footerBorder = isDark
 		? 'border-blue-900/40'
@@ -316,7 +306,6 @@ export function getAppFormFieldTheme(theme: Theme) {
 		selectTrigger,
 		selectContent,
 		selectItem,
-		settingsCard,
 		footerBorder,
 		footerCancel,
 		footerPrimary,
@@ -346,4 +335,10 @@ export function getAppFormFieldTheme(theme: Theme) {
 		contextTabActive,
 		contextSeparator
 	};
+}
+
+export type AppFormFieldTheme = ReturnType<typeof getAppFormFieldTheme>;
+
+export function useAppFormFieldTheme(theme: Theme): AppFormFieldTheme {
+	return useMemo(() => getAppFormFieldTheme(theme), [theme]);
 }

@@ -6,6 +6,7 @@ import { cn } from './ui/utils';
  * top-aligned content, consistent horizontal rhythm with shadcn-style spacing scale.
  */
 export const appMainContentPaddingClassName = 'px-4 py-6 sm:px-6 md:py-8 lg:px-8';
+export const appMainContentEdgeToEdgeClassName = 'p-0';
 
 const maxWidthClass = {
 	'2xl': 'max-w-2xl',
@@ -21,15 +22,23 @@ type AppMainContentRootProps = {
 	children: ReactNode;
 	className?: string;
 	style?: CSSProperties;
+	layout?: 'padded' | 'edge-to-edge';
 };
 
 /** Full-width column inside `<main>`: same outer padding everywhere, content starts at the top. */
-export function AppMainContentRoot({ children, className, style }: AppMainContentRootProps) {
+export function AppMainContentRoot({
+	children,
+	className,
+	style,
+	layout = 'padded'
+}: AppMainContentRootProps) {
 	return (
 		<div
 			className={cn(
 				'flex min-h-full w-full min-w-0 flex-col',
-				appMainContentPaddingClassName,
+				layout === 'edge-to-edge'
+					? appMainContentEdgeToEdgeClassName
+					: appMainContentPaddingClassName,
 				className
 			)}
 			style={style}
@@ -44,14 +53,28 @@ type AppMainContentContainerProps = {
 	className?: string;
 	/** Default `4xl`: centered column; use `6xl` for wide grids, `2xl` for narrow forms. */
 	maxWidth?: AppMainContentMaxWidth;
+	layout?: 'centered' | 'center-column';
 };
 
 /** Horizontally centered max-width wrapper (top-aligned). */
 export function AppMainContentContainer({
 	children,
 	className,
-	maxWidth = '4xl'
+	maxWidth = '4xl',
+	layout = 'centered'
 }: AppMainContentContainerProps) {
+	if (layout === 'center-column') {
+		return (
+			<div
+				className={cn(
+					'w-full xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(0,3fr)_minmax(0,1fr)]'
+				)}
+			>
+				<div className={cn('min-w-0 xl:col-start-2', className)}>{children}</div>
+			</div>
+		);
+	}
+
 	return (
 		<div className={cn('mx-auto w-full', maxWidthClass[maxWidth], className)}>{children}</div>
 	);

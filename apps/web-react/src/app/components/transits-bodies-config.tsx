@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
+import { Card, CardContent } from './ui/card';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import type { Theme } from './astrology-sidebar';
 
 type TransitsBodiesConfigProps = {
@@ -12,12 +13,11 @@ type TransitsBodiesConfigProps = {
 
 export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsBodiesConfigProps) {
 	const { t } = useTranslation();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 
 	return (
-		<div
-			className={cn('w-full rounded-xl p-6 md:p-8', ft.settingsCard, 'border-0 shadow-none')}
-		>
+		<Card variant="ghost" className="w-full rounded-xl">
+			<CardContent className="p-6 md:p-8">
 				<div className="mb-8">
 					<h1 className={cn('mb-2 text-2xl font-semibold', ft.title)}>{t(titleKey)}</h1>
 					<p className={cn('text-sm', ft.muted)}>{t(subtitleKey)}</p>
@@ -358,6 +358,7 @@ export function TransitsBodiesConfig({ theme, titleKey, subtitleKey }: TransitsB
 						{t('button_ok')}
 					</button>
 				</div>
-		</div>
+			</CardContent>
+		</Card>
 	);
 }

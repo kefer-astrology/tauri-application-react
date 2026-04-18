@@ -36,15 +36,14 @@ export function SecondaryNavPanel({
 	return (
 		<aside
 			className={cn(
-				'flex h-full min-h-0 w-[220px] shrink-0 flex-col border-r pt-2 transition-all duration-300 ease-in-out',
+				'flex h-full min-h-0 w-[220px] shrink-0 flex-col pt-2 transition-all duration-300 ease-in-out',
 				st.bg,
-				st.border,
 				className
 			)}
 			style={asideStyle}
 		>
 			{title ? (
-				<div className={cn('shrink-0 border-b px-3 py-4', st.border)}>
+				<div className="shrink-0 px-3 py-4">
 					<h2 className={cn('text-sm font-semibold tracking-wide uppercase', st.text)}>{title}</h2>
 				</div>
 			) : null}

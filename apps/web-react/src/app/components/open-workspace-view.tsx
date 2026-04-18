@@ -1,13 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FolderOpen, Save } from 'lucide-react';
+import { AppMainContentContainer, AppMainContentRoot } from './app-main-content';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
+import { Card, CardContent } from './ui/card';
 import { cn } from './ui/utils';
-import { getAppFormFieldTheme } from './form-field-theme';
+import { useAppFormFieldTheme } from './form-field-theme';
 import type { Theme } from './astrology-sidebar';
-import { useWorkspaceCharts } from '../workspace-charts-context';
+import { useWorkspaceCharts } from '../providers/workspace-charts';
 import type { AppChart } from '@/lib/tauri/chartPayload';
 
 type OpenMode = 'my_radixes' | 'database';
@@ -40,7 +42,7 @@ export function OpenWorkspaceView({
 	onActivateChart
 }: OpenWorkspaceViewProps) {
 	const { t } = useTranslation();
-	const ft = useMemo(() => getAppFormFieldTheme(theme), [theme]);
+	const ft = useAppFormFieldTheme(theme);
 	const { charts, selectedChartId } = useWorkspaceCharts();
 	const [openMode, setOpenMode] = useState<OpenMode>('my_radixes');
 	const [searchQuery, setSearchQuery] = useState('');
@@ -60,8 +62,8 @@ export function OpenWorkspaceView({
 	}, [charts, searchQuery]);
 
 	return (
-		<div className={cn('min-h-full p-4 md:p-6', ft.formPageBg)}>
-			<div className="mx-auto flex max-w-5xl flex-col gap-6">
+		<AppMainContentRoot className={ft.formPageBg} layout="edge-to-edge">
+			<AppMainContentContainer maxWidth="full" className="flex min-h-full flex-col gap-6 p-4 sm:p-6 lg:p-8">
 				<div>
 					<h1 className={cn('text-xl font-semibold', ft.title)}>{t('open_chart_title')}</h1>
 					<p className={cn('mt-1 text-sm', ft.muted)}>{t('open_description')}</p>
@@ -73,7 +75,7 @@ export function OpenWorkspaceView({
 					) : null}
 				</div>
 
-				<div className={cn('rounded-xl border p-4', ft.settingsCard)}>
+				<Card variant="ghost" className="rounded-xl p-4">
 					<div className="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
 						<div className="flex gap-2">
 							<Button
@@ -120,7 +122,7 @@ export function OpenWorkspaceView({
 					</div>
 
 					{openMode === 'my_radixes' ? (
-						<>
+						<CardContent className="px-0 pb-0">
 							<div className="mb-3">
 								<Label htmlFor="open-search" className={cn('sr-only')}>
 									{t('search_fulltext')}
@@ -189,15 +191,15 @@ export function OpenWorkspaceView({
 									</tbody>
 								</table>
 							</div>
-						</>
+						</CardContent>
 					) : (
 						<div className="flex min-h-[12rem] flex-col items-center justify-center gap-2 text-center">
 							<p className={cn('text-lg font-medium', ft.title)}>{t('open_mode_database')}</p>
 							<p className={cn('max-w-md text-sm', ft.muted)}>{t('database_placeholder')}</p>
 						</div>
 					)}
-				</div>
-			</div>
-		</div>
+				</Card>
+			</AppMainContentContainer>
+		</AppMainContentRoot>
 	);
 }

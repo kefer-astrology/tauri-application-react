@@ -1,9 +1,10 @@
-import React from 'react';
-
 type SharedSvgIconProps = {
 	src: string;
 	className?: string;
 	size?: number;
+	width?: number;
+	height?: number;
+	maskScale?: number;
 	title?: string;
 };
 
@@ -11,8 +12,15 @@ export function SharedSvgIcon({
 	src,
 	className = '',
 	size = 20,
+	width,
+	height,
+	maskScale = 1,
 	title
 }: SharedSvgIconProps) {
+	const resolvedWidth = width ?? size;
+	const resolvedHeight = height ?? size;
+	const resolvedMaskScale = `${maskScale * 100}%`;
+
 	return (
 		<span
 			className={className}
@@ -20,8 +28,8 @@ export function SharedSvgIcon({
 			aria-hidden={title ? undefined : true}
 			role={title ? 'img' : 'presentation'}
 			style={{
-				width: size,
-				height: size,
+				width: resolvedWidth,
+				height: resolvedHeight,
 				display: 'block',
 				flexShrink: 0,
 				lineHeight: 0,
@@ -30,11 +38,11 @@ export function SharedSvgIcon({
 				maskImage: `url(${src})`,
 				maskRepeat: 'no-repeat',
 				maskPosition: 'center',
-				maskSize: 'contain',
+				maskSize: `${resolvedMaskScale} ${resolvedMaskScale}`,
 				WebkitMaskImage: `url(${src})`,
 				WebkitMaskRepeat: 'no-repeat',
 				WebkitMaskPosition: 'center',
-				WebkitMaskSize: 'contain'
+				WebkitMaskSize: `${resolvedMaskScale} ${resolvedMaskScale}`
 			}}
 		/>
 	);

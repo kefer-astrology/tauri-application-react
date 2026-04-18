@@ -1,4 +1,3 @@
-import React from 'react';
 import { useTranslation } from 'react-i18next';
 import { Theme } from './astrology-sidebar';
 
@@ -90,8 +89,8 @@ export function Aspectarium({ theme }: AspectariumProps) {
 	const currentTheme = themeStyles[theme];
 
 	return (
-		<div className="flex h-full items-center justify-center p-8">
-			<div className="w-full max-w-5xl">
+		<div className="flex min-h-full w-full items-center justify-center p-4 sm:p-6 lg:p-8">
+			<div className="w-full">
 				<div className="mb-12 text-center">
 					<h1 className={`mb-3 text-3xl font-light ${currentTheme.text}`}>
 						{t('aspects_aspects')}
