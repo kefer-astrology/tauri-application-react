@@ -10,8 +10,8 @@ use commands::storage::{
 };
 use commands::workspace::{
     compute_chart, compute_chart_from_data, compute_transit_series, create_chart, create_workspace,
-    delete_chart, delete_workspace, get_chart_details, get_workspace_defaults, load_workspace,
-    open_folder_dialog, save_workspace, update_chart,
+    delete_chart, delete_workspace, get_chart_details, get_workspace_defaults, import_chart, load_workspace,
+    open_folder_dialog, resolve_location, save_workspace, update_chart,
 };
 
 #[allow(clippy::missing_panics_doc)]
@@ -32,7 +32,7 @@ pub fn run() {
             let app_handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 let state = app_handle.state::<backend::BackendState>();
-                if let Err(err) = backend::ensure_backend(&app_handle, &state).await {
+                if let Err(err) = backend::initialize_backend_availability(&app_handle, &state).await {
                     log::warn!("Python backend was not ready during startup: {err}");
                 }
             });
@@ -54,6 +54,7 @@ pub fn run() {
             create_workspace,
             delete_workspace,
             create_chart,
+            import_chart,
             update_chart,
             delete_chart,
             get_workspace_defaults,
@@ -61,6 +62,7 @@ pub fn run() {
             compute_chart_from_data,
             compute_transit_series,
             open_folder_dialog,
+            resolve_location,
             get_chart_details,
         ])
         .build(tauri::generate_context!())

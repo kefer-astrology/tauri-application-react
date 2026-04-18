@@ -3,10 +3,29 @@ use crate::workspace::{
     chart_to_summary, load_all_charts, load_workspace_manifest, ChartSummary, WorkspaceInfo,
 };
 use chrono::{DateTime, Duration, NaiveDate, NaiveDateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 use tauri::{AppHandle, State};
+
+const DEFAULT_GEOCODER_SEARCH_URL: &str = "https://nominatim.openstreetmap.org/search";
+const GEOCODER_USER_AGENT: &str = "KeferAstrology/2.0 (desktop geocoding)";
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeocodedLocation {
+    pub query: String,
+    pub display_name: String,
+    pub latitude: f64,
+    pub longitude: f64,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+struct NominatimSearchResult {
+    display_name: String,
+    lat: String,
+    lon: String,
+}
 
 /// Open a folder dialog and return the selected path
 #[tauri::command]
@@ -108,6 +127,53 @@ end tell"#;
     }
 }
 
+/// Resolve a free-form place string into coordinates using a configurable geocoder endpoint.
+#[tauri::command]
+pub async fn resolve_location(query: String) -> Result<GeocodedLocation, String> {
+    let trimmed_query = query.trim();
+    if trimmed_query.is_empty() {
+        return Err("Location query is required".to_string());
+    }
+
+    let endpoint = std::env::var("KEFER_GEOCODER_SEARCH_URL")
+        .ok()
+        .map(|value| value.trim().to_string())
+        .filter(|value| !value.is_empty())
+        .unwrap_or_else(|| DEFAULT_GEOCODER_SEARCH_URL.to_string());
+
+    let client = reqwest::Client::builder()
+        .user_agent(GEOCODER_USER_AGENT)
+        .timeout(std::time::Duration::from_secs(10))
+        .build()
+        .map_err(|err| format!("Failed to initialize geocoder client: {err}"))?;
+
+    let response = client
+        .get(&endpoint)
+        .query(&[
+            ("q", trimmed_query),
+            ("format", "jsonv2"),
+            ("limit", "1"),
+            ("addressdetails", "0"),
+        ])
+        .send()
+        .await
+        .map_err(|err| format!("Location lookup failed: {err}"))?;
+
+    if !response.status().is_success() {
+        return Err(format!(
+            "Location lookup failed with status {}",
+            response.status()
+        ));
+    }
+
+    let candidates = response
+        .json::<Vec<NominatimSearchResult>>()
+        .await
+        .map_err(|err| format!("Failed to decode location lookup response: {err}"))?;
+
+    select_nominatim_result(trimmed_query, &candidates)
+}
+
 /// Save current charts to a workspace folder (creates workspace.yaml and chart YAMLs).
 /// Implemented in Rust only — no Python required.
 #[tauri::command]
@@ -151,7 +217,7 @@ pub async fn save_workspace(
     }
 
     let default = WorkspaceDefaults {
-        ephemeris_engine: None,
+        ephemeris_engine: Some(crate::workspace::models::EngineType::Swisseph),
         ephemeris_backend: None,
         element_colors: None,
         radix_point_colors: None,
@@ -244,6 +310,54 @@ pub async fn create_chart(
     upsert_chart_id(&mut chart, &chart_id)?;
     let rel = chart_relative_path(&chart_id);
     write_chart_yaml(base, &rel, &chart)?;
+
+    manifest.charts.push(rel);
+    write_workspace_manifest(base, &manifest)?;
+    Ok(chart_id)
+}
+
+/// Import an existing chart file into the active workspace.
+#[tauri::command]
+pub async fn import_chart(workspace_path: String, source_path: String) -> Result<String, String> {
+    let base = Path::new(&workspace_path);
+    let mut manifest = load_workspace_manifest(base)?;
+    let source = Path::new(&source_path);
+
+    let extension = source
+        .extension()
+        .and_then(|value| value.to_str())
+        .map(|value| value.trim().to_ascii_lowercase());
+
+    let chart = match extension.as_deref() {
+        Some("yml" | "yaml") => read_importable_chart_yaml(source)?,
+        Some("sfs") => {
+            return Err(
+                "StarFisher/SFS import is not implemented in Rust yet. Use the Python-backed import path once available."
+                    .to_string(),
+            )
+        }
+        Some(other) => {
+            return Err(format!(
+                "Unsupported chart import format: .{other}. Supported formats: .yml, .yaml"
+            ))
+        }
+        None => {
+            return Err(
+                "Imported chart file must have a supported extension (.yml, .yaml, .sfs)"
+                    .to_string(),
+            )
+        }
+    };
+
+    let chart_id = chart.id.clone();
+    if find_chart_ref_by_id(base, &manifest, &chart_id)?.is_some() {
+        return Err(format!("Chart {} already exists", chart_id));
+    }
+
+    let rel = chart_relative_path(&chart_id);
+    let chart_json =
+        serde_json::to_value(&chart).map_err(|e| format!("Chart JSON serialization failed: {e}"))?;
+    write_chart_yaml(base, &rel, &chart_json)?;
 
     manifest.charts.push(rel);
     write_workspace_manifest(base, &manifest)?;
@@ -459,29 +573,27 @@ pub async fn get_chart_details(
 /// Compute chart positions and aspects from in-memory chart data (no workspace on disk).
 #[tauri::command]
 pub async fn compute_chart_from_data(
+    app: AppHandle,
+    backend_state: State<'_, crate::backend::BackendState>,
     chart_json: serde_json::Value,
 ) -> Result<HashMap<String, serde_json::Value>, String> {
     let backend = selected_compute_backend();
     let fallback_to_python = python_fallback_enabled();
     let force_python = chart_json_requires_python_precision(&chart_json);
-
-    if force_python {
-        return match backend {
-            ComputeBackend::Rust => Err("Rust backend does not support precise Swiss Ephemeris/JPL chart computation yet. Use Python backend.".to_string()),
-            _ => compute_chart_from_data_python(chart_json),
-        };
-    }
-
-    match backend {
-        ComputeBackend::Python => compute_chart_from_data_python(chart_json),
-        ComputeBackend::Rust => compute_chart_from_data_rust(chart_json),
-        ComputeBackend::Auto => match compute_chart_from_data_python(chart_json.clone()) {
-            Ok(result) => Ok(result),
-            Err(_err) if fallback_to_python => {
-                compute_chart_from_data_rust(chart_json)
+    let backend_available = matches!(
+        backend_state.availability()?,
+        crate::backend::BackendAvailability::Available
+    );
+    match select_chart_compute_route(backend, backend_available, force_python)? {
+        ComputeRoute::Rust => compute_chart_from_data_rust(chart_json),
+        ComputeRoute::Python if matches!(backend, ComputeBackend::Auto) && !force_python => {
+            match compute_chart_from_data_python(&app, &backend_state, chart_json.clone()).await {
+                Ok(result) => Ok(result),
+                Err(_err) if fallback_to_python => compute_chart_from_data_rust(chart_json),
+                Err(err) => Err(err),
             }
-            Err(err) => Err(err),
-        },
+        }
+        ComputeRoute::Python => compute_chart_from_data_python(&app, &backend_state, chart_json).await,
     }
 }
 
@@ -493,68 +605,18 @@ fn compute_chart_from_data_rust(
     build_chart_result(&chart, None)
 }
 
-fn compute_chart_from_data_python(
+async fn compute_chart_from_data_python(
+    app: &AppHandle,
+    backend_state: &crate::backend::BackendState,
     chart_json: serde_json::Value,
 ) -> Result<HashMap<String, serde_json::Value>, String> {
-    use std::io::Write;
-    let python_exe = find_python_executable()?;
-    let module_path = get_module_path()?;
-    let json_str = chart_json.to_string();
-    let mut child = Command::new(&python_exe)
-        .arg("-c")
-        .arg(format!(
-            r#"
-import sys
-import json
-sys.path.insert(0, '{}')
-from module.utils import parse_chart_yaml
-from module.services import compute_positions_for_chart, compute_aspects_for_chart
-
-try:
-    data = json.load(sys.stdin)
-    chart = parse_chart_yaml(data)
-    positions = compute_positions_for_chart(chart)
-    aspects = compute_aspects_for_chart(chart)
-    result = {{
-        'positions': positions or {{}},
-        'aspects': aspects or [],
-        'chart_id': chart.id
-    }}
-    print(json.dumps(result))
-except Exception as e:
-    print(json.dumps({{'error': str(e)}}))
-    sys.exit(1)
-"#,
-            module_path.display()
-        ))
-        .current_dir(&module_path)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| format!("Failed to execute Python: {}", e))?;
-    if let Some(mut stdin) = child.stdin.take() {
-        stdin.write_all(json_str.as_bytes()).ok();
-    }
-    let output = child
-        .wait_with_output()
-        .map_err(|e| format!("Python process error: {}", e))?;
-
-    if !output.status.success() {
-        let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-        let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        let error = if !stderr.is_empty() { stderr } else { stdout };
-        return Err(format!("Python error: {}", error));
-    }
-
-    let result_str = String::from_utf8(output.stdout)
-        .map_err(|e| format!("Failed to read Python output: {}", e))?;
-    let result: HashMap<String, serde_json::Value> = serde_json::from_str(&result_str)
-        .map_err(|e| format!("Failed to parse computation result: {}", e))?;
-    if let Some(error) = result.get("error") {
-        return Err(error.as_str().unwrap_or("Unknown error").to_string());
-    }
-    Ok(result)
+    let payload = serde_json::json!({
+        "chart_json": chart_json,
+    });
+    let response =
+        crate::backend::post_json(app, backend_state, "/charts/compute-from-data", &payload).await?;
+    serde_json::from_value(response)
+        .map_err(|err| format!("Failed to parse backend chart-from-data response: {err}"))
 }
 
 /// Compute chart positions and aspects using Python
@@ -568,31 +630,22 @@ pub async fn compute_chart(
     let backend = selected_compute_backend();
     let fallback_to_python = python_fallback_enabled();
     let force_python = chart_requires_python_precision(&workspace_path, &chart_id).unwrap_or(false);
-
-    if force_python {
-        return match backend {
-            ComputeBackend::Rust => Err("Rust backend does not support precise Swiss Ephemeris/JPL chart computation yet. Use Python backend.".to_string()),
-            _ => compute_chart_python(&app, &backend_state, &workspace_path, &chart_id).await,
-        };
-    }
-
-    match backend {
-        ComputeBackend::Python => {
+    let backend_available = matches!(
+        backend_state.availability()?,
+        crate::backend::BackendAvailability::Available
+    );
+    match select_chart_compute_route(backend, backend_available, force_python)? {
+        ComputeRoute::Rust => compute_chart_rust(&workspace_path, &chart_id),
+        ComputeRoute::Python if matches!(backend, ComputeBackend::Auto) && !force_python => {
+            match compute_chart_python(&app, &backend_state, &workspace_path, &chart_id).await {
+                Ok(result) => Ok(result),
+                Err(_err) if fallback_to_python => compute_chart_rust(&workspace_path, &chart_id),
+                Err(err) => Err(err),
+            }
+        }
+        ComputeRoute::Python => {
             compute_chart_python(&app, &backend_state, &workspace_path, &chart_id).await
         }
-        ComputeBackend::Rust => compute_chart_rust(&workspace_path, &chart_id),
-        ComputeBackend::Auto => match compute_chart_python(
-            &app,
-            &backend_state,
-            &workspace_path,
-            &chart_id,
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(_err) if fallback_to_python => compute_chart_rust(&workspace_path, &chart_id),
-            Err(err) => Err(err),
-        },
     }
 }
 
@@ -644,22 +697,13 @@ pub async fn compute_transit_series(
 ) -> Result<serde_json::Value, String> {
     let backend = selected_compute_backend();
     let fallback_to_python = python_fallback_enabled();
+    let backend_available = matches!(
+        backend_state.availability()?,
+        crate::backend::BackendAvailability::Available
+    );
 
-    match backend {
-        ComputeBackend::Python => compute_transit_series_python(
-            &app,
-            &backend_state,
-            &workspace_path,
-            &chart_id,
-            &start_datetime,
-            &end_datetime,
-            time_step_seconds,
-            transiting_objects,
-            transited_objects,
-            aspect_types,
-        )
-        .await,
-        ComputeBackend::Rust => compute_transit_series_rust(
+    match select_transit_compute_route(backend, backend_available)? {
+        ComputeRoute::Rust => compute_transit_series_rust(
             &workspace_path,
             &chart_id,
             &start_datetime,
@@ -669,33 +713,50 @@ pub async fn compute_transit_series(
             &transited_objects,
             &aspect_types,
         ),
-        ComputeBackend::Auto => match compute_transit_series_python(
-            &app,
-            &backend_state,
-            &workspace_path,
-            &chart_id,
-            &start_datetime,
-            &end_datetime,
-            time_step_seconds,
-            transiting_objects.clone(),
-            transited_objects.clone(),
-            aspect_types.clone(),
-        )
-        .await
-        {
-            Ok(result) => Ok(result),
-            Err(_err) if fallback_to_python => compute_transit_series_rust(
+        ComputeRoute::Python if matches!(backend, ComputeBackend::Auto) => {
+            match compute_transit_series_python(
+                &app,
+                &backend_state,
                 &workspace_path,
                 &chart_id,
                 &start_datetime,
                 &end_datetime,
                 time_step_seconds,
-                &transiting_objects,
-                &transited_objects,
-                &aspect_types,
-            ),
-            Err(err) => Err(err),
-        },
+                transiting_objects.clone(),
+                transited_objects.clone(),
+                aspect_types.clone(),
+            )
+            .await
+            {
+                Ok(result) => Ok(result),
+                Err(_err) if fallback_to_python => compute_transit_series_rust(
+                    &workspace_path,
+                    &chart_id,
+                    &start_datetime,
+                    &end_datetime,
+                    time_step_seconds,
+                    &transiting_objects,
+                    &transited_objects,
+                    &aspect_types,
+                ),
+                Err(err) => Err(err),
+            }
+        }
+        ComputeRoute::Python => {
+            compute_transit_series_python(
+                &app,
+                &backend_state,
+                &workspace_path,
+                &chart_id,
+                &start_datetime,
+                &end_datetime,
+                time_step_seconds,
+                transiting_objects,
+                transited_objects,
+                aspect_types,
+            )
+            .await
+        }
     }
 }
 
@@ -907,10 +968,20 @@ const MAJOR_ASPECTS: [AspectSpec; 5] = [
     },
 ];
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct RadixAxes {
+    asc: f64,
+    desc: f64,
+    mc: f64,
+    ic: f64,
+}
+
 fn build_chart_result(
     chart: &crate::workspace::models::ChartInstance,
     aspect_types: Option<&[String]>,
 ) -> Result<HashMap<String, serde_json::Value>, String> {
+    let axes = compute_radix_axes(chart)?;
+    let house_cusps = compute_house_cusps(chart, &axes);
     let positions =
         compute_positions_for_chart_rust(chart, chart.config.observable_objects.as_ref())?;
     let aspects = compute_chart_aspects(&positions, &chart.config.aspect_orbs, aspect_types);
@@ -918,8 +989,48 @@ fn build_chart_result(
     Ok(HashMap::from([
         ("positions".to_string(), serde_json::json!(positions)),
         ("aspects".to_string(), serde_json::json!(aspects)),
+        ("axes".to_string(), serde_json::json!(axes)),
+        ("house_cusps".to_string(), serde_json::json!(house_cusps)),
         ("chart_id".to_string(), serde_json::json!(chart.id)),
     ]))
+}
+
+fn compute_radix_axes(
+    chart: &crate::workspace::models::ChartInstance,
+) -> Result<RadixAxes, String> {
+    let event_time = chart
+        .subject
+        .event_time
+        .ok_or_else(|| "Chart has no subject.event_time".to_string())?;
+    let jd = julian_day(event_time);
+    let (asc, mc) = asc_mc_longitudes(
+        jd,
+        chart.subject.location.latitude,
+        chart.subject.location.longitude,
+    );
+
+    Ok(RadixAxes {
+        asc,
+        desc: normalize_deg(asc + 180.0),
+        mc,
+        ic: normalize_deg(mc + 180.0),
+    })
+}
+
+fn compute_house_cusps(
+    chart: &crate::workspace::models::ChartInstance,
+    axes: &RadixAxes,
+) -> Vec<f64> {
+    let start = match chart.config.house_system {
+        Some(crate::workspace::models::HouseSystem::WholeSign) => {
+            normalize_deg((axes.asc / 30.0).floor() * 30.0)
+        }
+        _ => axes.asc,
+    };
+
+    (0..12)
+        .map(|offset| normalize_deg(start + 30.0 * offset as f64))
+        .collect()
 }
 
 fn compute_positions_for_chart_rust(
@@ -946,15 +1057,11 @@ fn compute_positions_for_chart_rust(
         positions.insert(body.id.to_string(), longitude);
     }
 
-    let (asc, mc) = asc_mc_longitudes(
-        jd,
-        chart.subject.location.latitude,
-        chart.subject.location.longitude,
-    );
-    positions.insert("asc".to_string(), asc);
-    positions.insert("desc".to_string(), normalize_deg(asc + 180.0));
-    positions.insert("mc".to_string(), mc);
-    positions.insert("ic".to_string(), normalize_deg(mc + 180.0));
+    let axes = compute_radix_axes(chart)?;
+    positions.insert("asc".to_string(), axes.asc);
+    positions.insert("desc".to_string(), axes.desc);
+    positions.insert("mc".to_string(), axes.mc);
+    positions.insert("ic".to_string(), axes.ic);
 
     if let Some(requested) = requested_objects {
         if !requested.is_empty() {
@@ -1264,6 +1371,12 @@ enum ComputeBackend {
     Python,
 }
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ComputeRoute {
+    Rust,
+    Python,
+}
+
 fn selected_compute_backend() -> ComputeBackend {
     match std::env::var("KEFER_COMPUTE_BACKEND")
         .ok()
@@ -1288,54 +1401,59 @@ fn python_fallback_enabled() -> bool {
     )
 }
 
-fn find_python_executable() -> Result<PathBuf, String> {
-    // First, try to find a virtual environment in external_package
-    if let Ok(module_path) = get_module_path() {
-        let venv_candidates = vec![
-            module_path.join("venv").join("bin").join("python"),
-            module_path.join("venv").join("bin").join("python3"),
-            module_path.join(".venv").join("bin").join("python"),
-            module_path.join(".venv").join("bin").join("python3"),
-        ];
+fn select_chart_compute_route(
+    backend: ComputeBackend,
+    backend_available: bool,
+    force_python: bool,
+) -> Result<ComputeRoute, String> {
+    if force_python {
+        return match backend {
+            ComputeBackend::Rust => Err("Rust backend does not support precise Swiss Ephemeris/JPL chart computation yet. Use Python backend.".to_string()),
+            _ if backend_available => Ok(ComputeRoute::Python),
+            _ => Err("Python backend unavailable. This chart requires Python-backed computation.".to_string()),
+        };
+    }
 
-        for venv_python in venv_candidates {
-            if venv_python.exists() && Command::new(&venv_python).arg("--version").output().is_ok()
-            {
-                return Ok(venv_python);
+    match backend {
+        ComputeBackend::Rust => Ok(ComputeRoute::Rust),
+        ComputeBackend::Python => {
+            if backend_available {
+                Ok(ComputeRoute::Python)
+            } else {
+                Err("Python backend unavailable; use Rust fallback where supported".to_string())
+            }
+        }
+        ComputeBackend::Auto => {
+            if backend_available {
+                Ok(ComputeRoute::Python)
+            } else {
+                Ok(ComputeRoute::Rust)
             }
         }
     }
-
-    // Fall back to system Python
-    let candidates = vec!["python3", "python", "py"];
-
-    for cmd in candidates {
-        if Command::new(cmd).arg("--version").output().is_ok() {
-            return Ok(PathBuf::from(cmd));
-        }
-    }
-
-    Err("Python executable not found. Please install Python or create a virtual environment in external_package/".to_string())
 }
 
-fn get_module_path() -> Result<PathBuf, String> {
-    // Prefer packaged resources when bundled
-    // Resolve external_package relative to repo
-    let current_dir =
-        std::env::current_dir().map_err(|e| format!("Failed to get current directory: {}", e))?;
-
-    let candidates = vec![
-        current_dir.join("external_package"),
-        current_dir.join("..").join("external_package"),
-    ];
-
-    for path in candidates {
-        if path.exists() && path.is_dir() {
-            return Ok(path);
+fn select_transit_compute_route(
+    backend: ComputeBackend,
+    backend_available: bool,
+) -> Result<ComputeRoute, String> {
+    match backend {
+        ComputeBackend::Rust => Ok(ComputeRoute::Rust),
+        ComputeBackend::Python => {
+            if backend_available {
+                Ok(ComputeRoute::Python)
+            } else {
+                Err("Python backend unavailable; use Rust fallback where supported".to_string())
+            }
+        }
+        ComputeBackend::Auto => {
+            if backend_available {
+                Ok(ComputeRoute::Python)
+            } else {
+                Ok(ComputeRoute::Rust)
+            }
         }
     }
-
-    Err("external_package directory not found".to_string())
 }
 
 fn empty_workspace_manifest(owner: &str) -> crate::workspace::models::WorkspaceManifest {
@@ -1352,7 +1470,7 @@ fn empty_workspace_manifest(owner: &str) -> crate::workspace::models::WorkspaceM
         models: HashMap::new(),
         model_overrides: None,
         default: crate::workspace::models::WorkspaceDefaults {
-            ephemeris_engine: None,
+            ephemeris_engine: Some(crate::workspace::models::EngineType::Swisseph),
             ephemeris_backend: None,
             element_colors: None,
             radix_point_colors: None,
@@ -1369,6 +1487,428 @@ fn empty_workspace_manifest(owner: &str) -> crate::workspace::models::WorkspaceM
         charts: vec![],
         layouts: vec![],
         annotations: vec![],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use serde_json::Value;
+    use std::path::PathBuf;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    struct TestWorkspaceDir {
+        path: PathBuf,
+    }
+
+    impl TestWorkspaceDir {
+        fn new(prefix: &str) -> Self {
+            let unique = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .expect("system time should be after unix epoch")
+                .as_nanos();
+            let path = std::env::temp_dir().join(format!(
+                "kefer-{prefix}-{}-{unique}",
+                std::process::id()
+            ));
+            fs::create_dir_all(&path).expect("temporary test directory should be creatable");
+            Self { path }
+        }
+    }
+
+    impl Drop for TestWorkspaceDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    fn sample_workspace_path() -> String {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../backend-python-tests/sample")
+            .canonicalize()
+            .expect("sample workspace should exist")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn sample_chart_source_path() -> String {
+        PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../backend-python-tests/sample/charts/base-chart.yml")
+            .canonicalize()
+            .expect("sample chart should exist")
+            .to_string_lossy()
+            .into_owned()
+    }
+
+    fn sample_chart_payload(chart_id: &str) -> serde_json::Value {
+        serde_json::json!({
+            "id": chart_id,
+            "subject": {
+                "id": chart_id,
+                "name": chart_id,
+                "event_time": "2024-01-01T12:00:00+01:00",
+                "location": {
+                    "name": "Prague, CZ",
+                    "latitude": 50.0875,
+                    "longitude": 14.4214,
+                    "timezone": "Europe/Prague"
+                }
+            },
+            "config": {
+                "mode": "NATAL",
+                "house_system": "Placidus",
+                "zodiac_type": "Tropical",
+                "included_points": [],
+                "aspect_orbs": {
+                    "conjunction": 8.0,
+                    "square": 6.0
+                },
+                "display_style": "",
+                "color_theme": "",
+                "override_ephemeris": null,
+                "model": null,
+                "engine": "swisseph",
+                "ayanamsa": null,
+                "observable_objects": ["sun", "moon", "asc"],
+                "time_system": null
+            },
+            "computed_chart": null,
+            "tags": ["test"]
+        })
+    }
+
+    #[test]
+    fn chart_route_uses_rust_when_backend_unavailable_in_auto_mode() {
+        let route = select_chart_compute_route(ComputeBackend::Auto, false, false)
+            .expect("auto mode should fall back to rust");
+        assert_eq!(route, ComputeRoute::Rust);
+    }
+
+    #[test]
+    fn chart_route_requires_python_when_precision_is_forced() {
+        let err = select_chart_compute_route(ComputeBackend::Auto, false, true)
+            .expect_err("forced precision should fail without python");
+        assert!(err.contains("Python backend unavailable"));
+    }
+
+    #[test]
+    fn chart_route_honors_python_when_available() {
+        let route = select_chart_compute_route(ComputeBackend::Auto, true, true)
+            .expect("python should be selected when available");
+        assert_eq!(route, ComputeRoute::Python);
+    }
+
+    #[test]
+    fn transit_route_uses_rust_when_backend_unavailable_in_auto_mode() {
+        let route = select_transit_compute_route(ComputeBackend::Auto, false)
+            .expect("auto transit mode should fall back to rust");
+        assert_eq!(route, ComputeRoute::Rust);
+    }
+
+    #[test]
+    fn compute_chart_rust_reads_sample_workspace() {
+        let result = compute_chart_rust(&sample_workspace_path(), "Base Chart")
+            .expect("sample workspace chart should compute");
+
+        assert_eq!(result.get("chart_id"), Some(&serde_json::json!("Base Chart")));
+
+        let positions = result
+            .get("positions")
+            .and_then(Value::as_object)
+            .expect("positions should be an object");
+        assert!(positions.contains_key("sun"));
+        assert!(positions.contains_key("moon"));
+        assert!(positions.contains_key("asc"));
+
+        let axes = result
+            .get("axes")
+            .and_then(Value::as_object)
+            .expect("axes should be an object");
+        assert!(axes.contains_key("asc"));
+        assert!(axes.contains_key("mc"));
+
+        let house_cusps = result
+            .get("house_cusps")
+            .and_then(Value::as_array)
+            .expect("house_cusps should be an array");
+        assert_eq!(house_cusps.len(), 12);
+
+        let aspects = result
+            .get("aspects")
+            .and_then(Value::as_array)
+            .expect("aspects should be an array");
+        assert!(aspects.iter().all(Value::is_object));
+    }
+
+    #[test]
+    fn compute_house_cusps_uses_whole_sign_boundaries() {
+        let chart = load_chart(
+            std::path::Path::new(&sample_workspace_path()),
+            "charts/base-chart.yml",
+        )
+        .expect("sample chart should load");
+        let mut whole_sign_chart = chart.clone();
+        whole_sign_chart.config.house_system = Some(crate::workspace::models::HouseSystem::WholeSign);
+
+        let axes = compute_radix_axes(&whole_sign_chart).expect("axes should compute");
+        let cusps = compute_house_cusps(&whole_sign_chart, &axes);
+
+        assert_eq!(cusps.len(), 12);
+        let expected_first = (axes.asc / 30.0).floor() * 30.0;
+        assert!((cusps[0] - expected_first).abs() < 0.000_1);
+        assert!((normalize_deg(cusps[1] - cusps[0]) - 30.0).abs() < 0.000_1);
+    }
+
+    #[test]
+    fn compute_transit_series_rust_applies_requested_filters() {
+        let transiting_objects = vec!["sun".to_string()];
+        let transited_objects = vec!["moon".to_string()];
+        let aspect_types = vec!["square".to_string()];
+
+        let result = compute_transit_series_rust(
+            &sample_workspace_path(),
+            "Base Chart",
+            "2024-01-01T00:00:00Z",
+            "2024-01-01T02:00:00Z",
+            3600,
+            &transiting_objects,
+            &transited_objects,
+            &aspect_types,
+        )
+        .expect("sample transit series should compute");
+
+        let results = result
+            .get("results")
+            .and_then(Value::as_array)
+            .expect("results should be an array");
+        assert_eq!(results.len(), 3);
+
+        for entry in results {
+            let positions = entry
+                .get("transit_positions")
+                .and_then(Value::as_object)
+                .expect("transit_positions should be an object");
+            assert_eq!(positions.len(), 1);
+            assert!(positions.contains_key("sun"));
+
+            let aspects = entry
+                .get("aspects")
+                .and_then(Value::as_array)
+                .expect("aspects should be an array");
+            for aspect in aspects {
+                assert_eq!(aspect.get("type"), Some(&serde_json::json!("square")));
+                assert_eq!(aspect.get("from"), Some(&serde_json::json!("sun")));
+                assert_eq!(aspect.get("to"), Some(&serde_json::json!("moon")));
+            }
+        }
+    }
+
+    #[test]
+    fn create_workspace_writes_manifest_and_charts_dir() {
+        let temp = TestWorkspaceDir::new("workspace-create");
+        let workspace_path = temp.path.join("project");
+
+        let result = tauri::async_runtime::block_on(create_workspace(
+            workspace_path.to_string_lossy().into_owned(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+
+        assert_eq!(result, workspace_path.to_string_lossy());
+        assert!(workspace_path.join("charts").is_dir());
+        assert!(workspace_path.join("workspace.yaml").is_file());
+
+        let manifest = load_workspace_manifest(&workspace_path).expect("manifest should load");
+        assert_eq!(manifest.owner, "Tester");
+        assert!(manifest.charts.is_empty());
+    }
+
+    #[test]
+    fn get_workspace_defaults_reads_sample_workspace_defaults() {
+        let defaults = tauri::async_runtime::block_on(get_workspace_defaults(sample_workspace_path()))
+            .expect("sample defaults should load");
+
+        assert_eq!(defaults.get("default_engine"), Some(&serde_json::json!("swisseph")));
+        assert_eq!(defaults.get("default_bodies"), Some(&serde_json::Value::Null));
+        assert_eq!(defaults.get("default_aspects"), Some(&serde_json::Value::Null));
+    }
+
+    #[test]
+    fn create_chart_registers_chart_and_loads_in_workspace_summary() {
+        let temp = TestWorkspaceDir::new("chart-create");
+        let workspace_path = temp.path.join("project");
+        tauri::async_runtime::block_on(create_workspace(
+            workspace_path.to_string_lossy().into_owned(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+
+        let chart_id = tauri::async_runtime::block_on(create_chart(
+            workspace_path.to_string_lossy().into_owned(),
+            sample_chart_payload("Test Chart"),
+        ))
+        .expect("chart should be created");
+
+        assert_eq!(chart_id, "Test Chart");
+        assert!(workspace_path.join("charts/Test_Chart.yml").is_file());
+
+        let info = tauri::async_runtime::block_on(load_workspace(
+            workspace_path.to_string_lossy().into_owned(),
+        ))
+        .expect("workspace should load");
+
+        assert_eq!(info.charts.len(), 1);
+        assert_eq!(info.charts[0].id, "Test Chart");
+        assert_eq!(info.charts[0].name, "Test Chart");
+    }
+
+    #[test]
+    fn update_chart_rewrites_existing_chart_and_preserves_target_id() {
+        let temp = TestWorkspaceDir::new("chart-update");
+        let workspace_path = temp.path.join("project");
+        let workspace_path_str = workspace_path.to_string_lossy().into_owned();
+
+        tauri::async_runtime::block_on(create_workspace(
+            workspace_path_str.clone(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+        tauri::async_runtime::block_on(create_chart(
+            workspace_path_str.clone(),
+            sample_chart_payload("Original Chart"),
+        ))
+        .expect("chart should be created");
+
+        let mut updated_chart = sample_chart_payload("Different Incoming Id");
+        updated_chart["subject"]["name"] = serde_json::json!("Updated Name");
+        updated_chart["subject"]["location"]["name"] = serde_json::json!("Brno, CZ");
+
+        let updated_id = tauri::async_runtime::block_on(update_chart(
+            workspace_path_str.clone(),
+            "Original Chart".to_string(),
+            updated_chart,
+        ))
+        .expect("chart should be updated");
+
+        assert_eq!(updated_id, "Original Chart");
+
+        let details = tauri::async_runtime::block_on(get_chart_details(
+            workspace_path_str,
+            "Original Chart".to_string(),
+        ))
+        .expect("updated chart details should load");
+
+        assert_eq!(details.get("id"), Some(&serde_json::json!("Original Chart")));
+        assert_eq!(
+            details.pointer("/subject/name"),
+            Some(&serde_json::json!("Updated Name"))
+        );
+        assert_eq!(
+            details.pointer("/subject/location/name"),
+            Some(&serde_json::json!("Brno, CZ"))
+        );
+    }
+
+    #[test]
+    fn import_chart_adds_external_yaml_chart_to_workspace() {
+        let temp = TestWorkspaceDir::new("chart-import");
+        let workspace_path = temp.path.join("project");
+        let workspace_path_str = workspace_path.to_string_lossy().into_owned();
+
+        tauri::async_runtime::block_on(create_workspace(
+            workspace_path_str.clone(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+
+        let imported_id = tauri::async_runtime::block_on(import_chart(
+            workspace_path_str.clone(),
+            sample_chart_source_path(),
+        ))
+        .expect("yaml chart should import");
+
+        assert_eq!(imported_id, "Base Chart");
+        assert!(workspace_path.join("charts/Base_Chart.yml").is_file());
+
+        let info = tauri::async_runtime::block_on(load_workspace(workspace_path_str))
+            .expect("workspace should load after import");
+        assert_eq!(info.charts.len(), 1);
+        assert_eq!(info.charts[0].id, "Base Chart");
+    }
+
+    #[test]
+    fn import_chart_rejects_duplicate_chart_ids() {
+        let temp = TestWorkspaceDir::new("chart-import-duplicate");
+        let workspace_path = temp.path.join("project");
+        let workspace_path_str = workspace_path.to_string_lossy().into_owned();
+
+        tauri::async_runtime::block_on(create_workspace(
+            workspace_path_str.clone(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+
+        tauri::async_runtime::block_on(import_chart(
+            workspace_path_str.clone(),
+            sample_chart_source_path(),
+        ))
+        .expect("first import should succeed");
+
+        let err = tauri::async_runtime::block_on(import_chart(
+            workspace_path_str,
+            sample_chart_source_path(),
+        ))
+        .expect_err("duplicate import should fail");
+
+        assert!(err.contains("already exists"));
+    }
+
+    #[test]
+    fn import_chart_rejects_unsupported_sfs_until_backend_path_exists() {
+        let temp = TestWorkspaceDir::new("chart-import-sfs");
+        let workspace_path = temp.path.join("project");
+        let workspace_path_str = workspace_path.to_string_lossy().into_owned();
+        let source_path = temp.path.join("sample.sfs");
+        fs::write(&source_path, "_settings.Model.DefaultHouseSystem = \"Placidus\";\n")
+            .expect("temporary sfs file should be writable");
+
+        tauri::async_runtime::block_on(create_workspace(
+            workspace_path_str.clone(),
+            "Tester".to_string(),
+        ))
+        .expect("workspace should be created");
+
+        let err = tauri::async_runtime::block_on(import_chart(
+            workspace_path_str,
+            source_path.to_string_lossy().into_owned(),
+        ))
+        .expect_err("sfs import should remain staged");
+
+        assert!(err.contains("StarFisher/SFS import is not implemented in Rust yet"));
+    }
+
+    #[test]
+    fn select_nominatim_result_returns_first_candidate() {
+        let candidates = vec![NominatimSearchResult {
+            display_name: "Prague, Czechia".to_string(),
+            lat: "50.0875".to_string(),
+            lon: "14.4214".to_string(),
+        }];
+
+        let result = select_nominatim_result("Prague", &candidates)
+            .expect("candidate should resolve");
+
+        assert_eq!(result.display_name, "Prague, Czechia");
+        assert_eq!(result.latitude, 50.0875);
+        assert_eq!(result.longitude, 14.4214);
+    }
+
+    #[test]
+    fn select_nominatim_result_rejects_empty_candidate_list() {
+        let err = select_nominatim_result("Unknown", &[])
+            .expect_err("empty result list should fail");
+        assert!(err.contains("No location results found"));
     }
 }
 
@@ -1391,6 +1931,40 @@ fn extract_chart_id(chart: &serde_json::Value) -> Result<&str, String> {
         .and_then(|v| v.as_str())
         .filter(|v| !v.trim().is_empty())
         .ok_or_else(|| "Chart id is required".to_string())
+}
+
+fn read_importable_chart_yaml(path: &Path) -> Result<crate::workspace::models::ChartInstance, String> {
+    use std::fs;
+
+    let content = fs::read_to_string(path)
+        .map_err(|e| format!("Failed to read import file {}: {}", path.display(), e))?;
+    serde_yaml::from_str(&content)
+        .map_err(|e| format!("Failed to parse chart YAML {}: {}", path.display(), e))
+}
+
+fn select_nominatim_result(
+    query: &str,
+    candidates: &[NominatimSearchResult],
+) -> Result<GeocodedLocation, String> {
+    let best = candidates
+        .first()
+        .ok_or_else(|| format!("No location results found for '{query}'"))?;
+
+    let latitude = best
+        .lat
+        .parse::<f64>()
+        .map_err(|err| format!("Invalid latitude returned by geocoder: {err}"))?;
+    let longitude = best
+        .lon
+        .parse::<f64>()
+        .map_err(|err| format!("Invalid longitude returned by geocoder: {err}"))?;
+
+    Ok(GeocodedLocation {
+        query: query.to_string(),
+        display_name: best.display_name.clone(),
+        latitude,
+        longitude,
+    })
 }
 
 fn upsert_chart_id(chart: &mut serde_json::Value, chart_id: &str) -> Result<(), String> {

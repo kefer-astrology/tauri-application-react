@@ -1,0 +1,8 @@
+{
+	"build": {
+		"frontendDist": "../apps/web-svelte/dist",
+		"devUrl": "http://localhost:1422",
+		"beforeDevCommand": "npm run dev -w web-svelte",
+		"beforeBuildCommand": "npm run build -w web-svelte"
+	}
+}

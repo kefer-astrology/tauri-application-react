@@ -11,9 +11,17 @@ const HOST: &str = "127.0.0.1";
 const STARTUP_RETRIES: usize = 60;
 const STARTUP_DELAY_MS: u64 = 250;
 
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum BackendAvailability {
+    Unknown,
+    Available,
+    Unavailable,
+}
+
 pub struct BackendState {
     base_url: String,
     child: Mutex<Option<Child>>,
+    availability: Mutex<BackendAvailability>,
     startup_lock: tauri::async_runtime::Mutex<()>,
     client: reqwest::Client,
 }
@@ -30,6 +38,7 @@ impl BackendState {
         Ok(Self {
             base_url,
             child: Mutex::new(None),
+            availability: Mutex::new(BackendAvailability::Unknown),
             startup_lock: tauri::async_runtime::Mutex::new(()),
             client,
         })
@@ -37,6 +46,38 @@ impl BackendState {
 
     pub fn base_url(&self) -> &str {
         &self.base_url
+    }
+
+    pub fn availability(&self) -> Result<BackendAvailability, String> {
+        self.availability
+            .lock()
+            .map(|guard| *guard)
+            .map_err(|_| "Backend availability lock poisoned".to_string())
+    }
+
+    fn set_availability(&self, availability: BackendAvailability) -> Result<(), String> {
+        let mut guard = self
+            .availability
+            .lock()
+            .map_err(|_| "Backend availability lock poisoned".to_string())?;
+        *guard = availability;
+        Ok(())
+    }
+}
+
+pub async fn initialize_backend_availability<R: Runtime>(
+    app: &AppHandle<R>,
+    state: &BackendState,
+) -> Result<String, String> {
+    match ensure_backend(app, state).await {
+        Ok(url) => {
+            let _ = state.set_availability(BackendAvailability::Available);
+            Ok(url)
+        }
+        Err(err) => {
+            let _ = state.set_availability(BackendAvailability::Unavailable);
+            Err(err)
+        }
     }
 }
 
@@ -89,7 +130,14 @@ pub async fn post_json<R: Runtime, T: Serialize>(
     path: &str,
     payload: &T,
 ) -> Result<serde_json::Value, String> {
-    let base_url = ensure_backend(app, state).await?;
+    let availability = state.availability()?;
+    let base_url = match availability {
+        BackendAvailability::Available => state.base_url().to_string(),
+        BackendAvailability::Unavailable => {
+            return Err("Python backend unavailable; use Rust fallback where supported".to_string())
+        }
+        BackendAvailability::Unknown => initialize_backend_availability(app, state).await?,
+    };
     let url = format!("{base_url}{path}");
     let response = state
         .client

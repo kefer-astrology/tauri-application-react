@@ -1,6 +1,8 @@
-//! DuckDB-backed workspace storage is **disabled** while the React UI is the focus.
-//! These commands stay registered so `invoke` from the frontend does not break.
-//! `init_storage` still creates `data/`; queries return empty results; writes are no-ops.
+//! Workspace-only storage compatibility commands.
+//!
+//! The desktop app does not persist computed positions, aspects, or relations in Rust.
+//! These commands stay registered so existing frontend `invoke` calls keep working while
+//! workspace data continues to live in YAML files.
 
 use crate::storage::models::{
     AspectData, PositionData, PositionRow, RadixRelativeRow, RelationData,
@@ -11,16 +13,20 @@ use std::path::PathBuf;
 #[tauri::command]
 pub async fn init_storage(workspace_path: String) -> Result<String, String> {
     let workspace_dir = PathBuf::from(&workspace_path);
-    let data_dir = workspace_dir.join("data");
-    std::fs::create_dir_all(&data_dir)
-        .map_err(|e| format!("Failed to create data directory: {}", e))?;
-    let db_path = data_dir.join("workspace.db");
-    let s = db_path.to_str().ok_or("Invalid database path")?.to_string();
+    std::fs::create_dir_all(&workspace_dir)
+        .map_err(|e| format!("Failed to create workspace directory: {}", e))?;
+    std::fs::create_dir_all(workspace_dir.join("charts"))
+        .map_err(|e| format!("Failed to create charts directory: {}", e))?;
+
+    let normalized = workspace_dir
+        .to_str()
+        .ok_or("Invalid workspace path")?
+        .to_string();
     log::info!(
-        "Storage (DuckDB) disabled: ensured data dir at {}",
-        data_dir.display()
+        "Computed data persistence is disabled in Rust storage; ensured workspace structure at {}",
+        workspace_dir.display()
     );
-    Ok(s)
+    Ok(normalized)
 }
 
 #[tauri::command]

@@ -1,0 +1,8 @@
+{
+	"build": {
+		"frontendDist": "../apps/web-react/dist",
+		"devUrl": "http://localhost:1420",
+		"beforeDevCommand": "npm run dev -w web-react",
+		"beforeBuildCommand": "npm run build -w web-react"
+	}
+}
