@@ -22,6 +22,8 @@ Rust does not own persisted storage of computed positions, aspects, or transit s
 - The app should check whether the Python backend is available at startup and use that availability state as the general runtime decision source.
 - Do not repeatedly probe for Python sidecar existence in every feature flow when startup availability state can be reused.
 - If Python is unavailable, Rust fallback behavior must remain functional for supported features.
+- CI and desktop packaging must not be blocked by sidecar build failures while the Rust/no-sidecar path is the baseline.
+- `backend-python/` may be omitted from some packaging contexts as long as the resulting app still supports the documented Rust fallback flows.
 - Do not reintroduce DuckDB- or Parquet-based persistence on the Rust side unless a new `/llm/` spec explicitly changes this rule.
 
 ## Practical implications

@@ -41,7 +41,7 @@ Tracking items for automation; not implemented yet.
 
 ## 3. Optional follow-ups
 
-- Python sidecar: build `kefer-backend` (or your binary name) in CI and attach as artifact, or document “bring your own binary” for PRs.
+- Python sidecar: keep it optional in CI while Rust/no-sidecar is the baseline. When needed, build `kefer-backend` (or your binary name) and attach it as a separate artifact or release asset instead of making desktop bundle jobs depend on it.
 - Code signing / notarization secrets (Windows, macOS) — only when you are ready to release.
 
 

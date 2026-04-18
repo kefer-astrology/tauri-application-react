@@ -12,7 +12,7 @@ Operational guide for the Kefer desktop UI (React + Vite + Tauri).
 
 - Node.js (see team `.nvmrc` or local convention).
 - Rust toolchain for `cargo tauri build` / `cargo tauri dev`.
-- Python sidecar: built binary expected at `src-tauri/binaries/kefer-backend` (see Tauri `bundle.resources` in `src-tauri/tauri.conf.json`).
+- Python sidecar: optional for the current baseline. If a built binary is staged at `src-tauri/binaries/kefer-backend`, Tauri can bundle it; if not, the app should still run supported flows through the Rust/no-sidecar path.
 
 ### Workspace-only storage compatibility
 

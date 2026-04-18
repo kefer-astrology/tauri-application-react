@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+env:
+  BUILD_BACKEND_SIDECAR: ${{ vars.BUILD_BACKEND_SIDECAR || 'false' }}
+
 jobs:
   build:
     strategy:
@@ -21,14 +24,14 @@ jobs:
     runs-on: ${{ matrix.platform }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: 22
           cache: npm
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.11"
 
@@ -54,7 +57,14 @@ jobs:
         run: npm ci
 
       - name: Build backend sidecar
+        if: env.BUILD_BACKEND_SIDECAR == 'true' && hashFiles('backend-python/pyproject.toml') != ''
         run: python scripts/build-backend-sidecar.py
+
+      - name: Sidecar status
+        if: env.BUILD_BACKEND_SIDECAR != 'true' || hashFiles('backend-python/pyproject.toml') == ''
+        run: |
+          echo "Skipping backend sidecar build."
+          echo "Desktop bundles will rely on the Rust/no-sidecar path unless src-tauri/binaries already contains a staged backend binary."
 
       - name: Build Svelte Tauri app
         run: npm run tauri:build:svelte
