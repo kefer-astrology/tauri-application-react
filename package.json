@@ -32,6 +32,9 @@
 		"tauri:build": "tauri build --config src-tauri/tauri.react.conf.json",
 		"tauri:build:svelte": "tauri build --config src-tauri/tauri.svelte.conf.json"
 	},
+	"optionalDependencies": {
+		"@rolldown/binding-linux-x64-gnu": "1.0.0-rc.16"
+	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
 		"@eslint/js": "^9.39.1",
