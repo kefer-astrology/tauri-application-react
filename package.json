@@ -33,7 +33,11 @@
 		"tauri:build:svelte": "tauri build --config src-tauri/tauri.svelte.conf.json"
 	},
 	"optionalDependencies": {
-		"@rolldown/binding-linux-x64-gnu": "1.0.0-rc.16"
+		"@rolldown/binding-linux-x64-gnu": "1.0.0-rc.16",
+		"@tauri-apps/cli-darwin-arm64": "2.10.1",
+		"@tauri-apps/cli-darwin-x64": "2.10.1",
+		"@tauri-apps/cli-linux-x64-gnu": "2.10.1",
+		"@tauri-apps/cli-win32-x64-msvc": "2.10.1"
 	},
 	"devDependencies": {
 		"@eslint/compat": "^2.0.3",
