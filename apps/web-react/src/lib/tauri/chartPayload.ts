@@ -1,5 +1,5 @@
 import type { ChartDetails } from './types';
-import { DEFAULT_OBSERVABLE_OBJECT_IDS } from '@/lib/astrology/observableObjects';
+import { DEFAULT_ENABLED_OBSERVABLE_OBJECT_IDS } from '@/lib/astrology/observableObjects';
 import { ASPECT_ROWS, DEFAULT_ASPECT_COLORS, DEFAULT_ASPECT_ORBS } from '@/lib/astrology/aspects';
 import type { AspectLineTierStyleDto } from './types';
 
@@ -158,7 +158,7 @@ export const DEFAULT_WORKSPACE_DEFAULTS: WorkspaceDefaultsState = {
 	locationLatitude: 50.0875,
 	locationLongitude: 14.4214,
 	engine: 'swisseph',
-	defaultBodies: [...DEFAULT_OBSERVABLE_OBJECT_IDS],
+	defaultBodies: [...DEFAULT_ENABLED_OBSERVABLE_OBJECT_IDS],
 	defaultAspects: ASPECT_ROWS.map((aspect) => aspect.id),
 	defaultAspectOrbs: { ...DEFAULT_ASPECT_ORBS },
 	defaultAspectColors: { ...DEFAULT_ASPECT_COLORS },
