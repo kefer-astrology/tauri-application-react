@@ -1,14 +1,12 @@
 ---
 title: "SPICE backend"
-description: "JPL/SPICE backend architecture, licensing rationale, and anise assessment target."
+description: "Current JPL/SPICE backend architecture and runtime status."
 weight: 41
 ---
 
 # SPICE backend
 
-This page describes the current **JPL / SPICE** backend architecture in Kefer, why it exists, and what remains before the migration is fully closed.
-
-For the shortest in-repo status snapshot, use **[MIGRATION.md](MIGRATION.md)**.
+This page describes the current **JPL / SPICE** backend architecture in Kefer.
 
 ## Why this direction is required — licensing
 
@@ -19,10 +17,15 @@ The JPL-centered path removes this dependency from the default Rust build:
 
 | Path | Library | License | File |
 |------|---------|---------|------|
-| Python sidecar | Skyfield | MIT | `de421.bsp` (public domain) |
-| Rust standalone | `anise` | MPL-2.0 | `de421.bsp` (public domain) |
+| Python sidecar | Skyfield | MIT | `de440s.bsp` (public domain) |
+| Rust standalone | `anise` | MPL-2.0 | `de440s.bsp` (public domain) |
 
-Both paths share the same `de421.bsp` SPICE kernel file already present at `backend-python/source/de421.bsp`.
+Both paths share the same `de440s.bsp` SPICE kernel file present at `backend-python/source/de440s.bsp` and bundled in `src-tauri/resources/de440s.bsp`. `de421.bsp` is still bundled as an additional fallback kernel. See **[ephemeris-manager](./ephemeris-manager/)** for the full catalog, download mechanism, and asteroid body support.
+
+Status note:
+
+- Rust currently prefers the bundled/downloaded BSP set managed by `EphemerisManager`.
+- Python currently prefers `de440s.bsp` when present and falls back to `de421.bsp`.
 
 ## Purpose
 
@@ -59,48 +62,47 @@ It should not answer:
 The Python and Rust paths both target the **SPICE BSP (SPK) format** — `.bsp` files such as `de421.bsp`.
 
 This is distinct from the old-format JPL binary files (`.eph`) used by Swiss Ephemeris's `swejpl.c` mode (`SEFLG_JPLEPH`).
-The existing `JplViaSwissAstronomyBackend` in Rust uses the `.eph` format via libswe — it is a transitional step that proves backend selection works, but it does **not** use `de421.bsp` and does **not** remove the AGPL dependency.
+`JplViaSwissAstronomyBackend` in Rust uses the `.eph` format via libswe. It does **not** use `.bsp` files and does **not** remove the AGPL dependency.
 
-## Rust candidate: `anise`
+## Rust backend: `anise`
 
 [`anise`](https://github.com/nyx-space/anise) (nyx-space) is a pure Rust astrodynamics library that reads SPICE BSP files directly — no C library linking, no CSPICE dependency.
 
-**Assessment result: viable and now implemented in the Rust backend.**
+`anise` is implemented in the Rust backend.
 
 | Property | Result |
 |----------|--------|
 | License | **MPL-2.0** — file-level copyleft only; using it as a dependency does not affect application code |
-| Version | 0.9.0, actively maintained |
+| Version | 0.9.6, actively maintained |
 | C deps | None — pure Rust, cross-platform |
 | Maturity | NASA TRL 9; used operationally on the Firefly Blue Ghost lunar lander |
-| BSP support | ✅ reads `de421.bsp` natively; DE421 covers 1899–2053 |
-| Bodies | ✅ Sun, Moon, Mercury, Venus, Mars, Jupiter, Saturn, Uranus, Neptune, Pluto |
+| BSP support | ✅ reads DE440s/DE440/DE441 natively; DE440s covers 1900–2050 |
+| Bodies | ✅ Sun, Moon, 8 planets, Pluto (DE440+ files identical to DE421 for queryable bodies) |
 | Output | ICRF/J2000 state vectors; frame transforms available |
-| Precision | Sub-arcsecond; validated against 100k+ queries on DE440 at machine precision |
+| Precision | Sub-arcsecond; validated against 100k+ queries at machine precision |
 
-**Gaps to implement above the backend:**
+**Implemented above the backend:**
 
-- **Ecliptic longitude**: `anise` returns ICRF/J2000 vectors. A rotation by the obliquity of the ecliptic converts them to ecliptic coordinates. This is standard math, implementable in pure Rust.
-- **Lunar nodes**: Not in DE421. True Node and Mean Node must be computed analytically from the Moon's orbital elements.
-- **Chiron**: Asteroid, not in DE421. Needs a separate SPK file or skip for now.
-- **House cusps**: `anise` does not compute astrological house systems. A `houses.rs` layer will compute these from RAMC + obliquity — belongs in the astrology layer anyway.
-- **Ayanamsha**: Needs own implementation above the backend.
+- **Ecliptic longitude** ✅ — ICRF/J2000 → ecliptic via obliquity rotation in `houses.rs`
+- **Lunar nodes** ✅ — Mean Node computed analytically (IAU 1980 formula); South Node = Mean + 180°
+- **Asteroid body IDs** ✅ — Ceres, Pallas, Juno, Vesta frames are registered via DE440-era NAIF IDs; actual position queries still require a dedicated asteroid SPK kernel. See [ephemeris-manager](./ephemeris-manager/)
+- **House cusps** ✅ — Whole Sign + Placidus in `houses.rs`; other systems fall back to Whole Sign with a warning
+- **Ayanamsha** — Routed through Python/Swiss for Vedic charts; own implementation pending
 
-These are all manageable. The core planetary positions and precision are solid.
-
-**Target Rust module layout once `anise` is integrated:**
+**Current Rust module layout:**
 
 ```text
 src-tauri/src/
   astronomy.rs              # AstronomyBackend trait + backend_for_chart()
-  jpl_backend.rs          # JplAstronomyBackend — reads de421.bsp, MPL-2.0, no AGPL
-  houses.rs                 # pure-Rust house cusp calculations (Placidus, Whole Sign, etc.)
+  ephemeris_manager.rs      # BSP catalog, download, multi-file almanac construction
+  jpl_backend.rs            # JplAstronomyBackend — reads de440s.bsp via anise, MPL-2.0
+  houses.rs                 # pure-Rust obliquity, GMST, ASC/MC, Placidus/WholeSign, Mean Node
   swisseph.rs               # gated behind "swisseph" Cargo feature flag (AGPL)
 ```
 
 ## Python module layout
 
-Target Python layout:
+Current Python layout target:
 
 ```text
 backend-python/module/
@@ -115,13 +117,13 @@ backend-python/module/
     houses.py              # house cusp integration
 ```
 
-The Python and Rust seams should be conceptually equivalent even if the implementations differ.
+The Python and Rust seams are intended to stay aligned at the backend contract level.
 
 ## Core interface
 
 The backend interface should stay small.
 
-Conceptual shape:
+Current contract shape:
 
 ```python
 class EphemerisBackend(Protocol):
@@ -217,19 +219,20 @@ Those higher layers remain Kefer-owned logic.
 
 ## Implementation status
 
-1. ~~assess `anise`~~ ✅ — viable; see assessment above
+1. ~~assess `anise`~~ ✅ — viable; MPL-2.0, pure Rust, NASA TRL 9
 2. ~~implement `JplAstronomyBackend` in `src-tauri/src/jpl_backend.rs` behind the `AstronomyBackend` trait~~ ✅
-3. ~~implement `src-tauri/src/houses.rs` — pure-Rust Whole Sign and Placidus house cusp calculations driven by RAMC + obliquity~~ ✅
+3. ~~implement `src-tauri/src/houses.rs` — pure-Rust Whole Sign and Placidus house cusp calculations~~ ✅
 4. ~~implement ecliptic longitude transform (ICRF → ecliptic via obliquity rotation)~~ ✅
-5. ~~implement Mean Node analytically~~ ✅ (True Node pending — see note below)
-6. ~~gate `swisseph.rs` and `build.rs` Swiss compilation behind a `swisseph` Cargo feature flag~~ ✅
-   - Feature: `swisseph` (off by default)
-   - `cargo check --no-default-features` → license-clean build compiles in ~3 s, zero new warnings
-   - `cargo check --features swisseph` → full build with libswe compiles cleanly
-7. validate `anise` output against Swiss output at the astronomy layer
-8. make the `swisseph` feature default `off` in any CI / release workflow configs
+5. ~~implement Mean Node + South Node analytically~~ ✅
+6. ~~gate `swisseph.rs` behind a `swisseph` Cargo feature flag~~ ✅ (off by default; `cargo check` → license-clean)
+7. ~~implement `EphemerisManager` — multi-BSP catalog, download, asteroid support~~ ✅ — see [ephemeris-manager](./ephemeris-manager/)
+8. ~~upgrade default BSP from `de421` to `de440s`~~ ✅ — bundled in `src-tauri/resources/de440s.bsp`
+9. ~~avoid reloading BSP files for every chart compute~~ ✅ — Rust now caches chained `Almanac` instances by active BSP path set
+10. dedicated asteroid kernels for Ceres, Pallas, Juno, Vesta are still needed before those bodies become queryable
+11. validation against Swiss output at the astronomy layer is partial; a J2000 spot-check test exists
+12. CI / release workflow configs should keep the `swisseph` feature default-off
 
-**True Node**: Not yet implemented. `mean_node_lon()` in `houses.rs` computes the Mean North Node. True Node would require iterative convergence on Moon–ecliptic intersection — deferred.
+**True Node**: Not yet implemented. `mean_node_lon()` computes the Mean North Node. True Node requires iterative convergence on Moon–ecliptic intersection — deferred.
 
 ## Current status
 
@@ -239,13 +242,12 @@ Those higher layers remain Kefer-owned logic.
 
 - `AstronomyBackend` trait: `backend_id()`, `ephemeris_source()`, `compute_chart_data()`
 - `SwissAstronomyBackend` — uses libswe, **AGPL; gated behind `swisseph` feature**
-- `JplViaSwissAstronomyBackend` — uses libswe via `swejpl.c` + `SEFLG_JPLEPH`; **AGPL; gated behind `swisseph` feature**
-- `JplAstronomyBackend` ✅ — reads `de421.bsp` via `anise` 0.9.6, **MPL-2.0, always available**
-- `backend_for_chart(chart)` — prefers `JplAstronomyBackend` when BSP is resolvable; falls back to Swiss only when `swisseph` feature is enabled
-- `houses.rs` ✅ — pure-Rust obliquity, GMST, ASC/MC, Whole Sign + Placidus cusps, Mean Node, ICRF→ecliptic
+- `JplViaSwissAstronomyBackend` — uses libswe + `SEFLG_JPLEPH`; **AGPL; gated**
+- `JplAstronomyBackend` ✅ — loads BSP via `anise` 0.9.6, **MPL-2.0, always available**; uses `EphemerisManager` to resolve multiple files and caches chained `Almanac` instances by BSP path set
+- `backend_for_chart(chart)` — prefers `JplAstronomyBackend`; falls back to Swiss only when `swisseph` feature is enabled
+- `houses.rs` ✅ — pure-Rust obliquity, GMST, ASC/MC, Whole Sign + Placidus, Mean Node, South Node, ICRF→ecliptic
+- `ephemeris_manager.rs` ✅ — BSP catalog (de440s/de440/de441), download with progress events, multi-BSP almanac, asteroid NAIF IDs
 - `build.rs` ✅ — only compiles libswe when `CARGO_FEATURE_SWISSEPH` is set
-- Rust Tauri chart responses now surface backend warnings from `AstronomyChartData`
-- Rust transit responses now report the actual backend used instead of a hardcoded Swiss label
 
 ### Python
 
@@ -253,11 +255,12 @@ Those higher layers remain Kefer-owned logic.
 
 - `AstronomyBackend` Protocol + `ChartData` dataclass
 - `SwissAstronomyBackend` — wraps Kerykeion/Swiss path, **AGPL active**
-- `JplAstronomyBackend` — wraps Skyfield + `de421.bsp`, ✅ **MIT + public domain**
+- `JplAstronomyBackend` — wraps Skyfield + local BSP, preferring `de440s.bsp` and falling back to `de421.bsp`, ✅ **MIT + public domain**
 - `backend_for_chart()` — selects based on `chart.config.engine`
 - `compute_chart_data()` implemented on both backends
 - Python JPL now computes `axes` and `house_cusps`
 - `services.py` now routes chart computation through the structured chart-data seam
+- `services.py` also exposes `compute_aspects_for_chart()` as a Python-native aspect seam
 - `cli.py` chart compute now consumes `ChartData` directly
 - `/function-wrapper/module/` should mirror these same Python seam changes if that copy remains active in parallel
 
@@ -268,13 +271,21 @@ Those higher layers remain Kefer-owned logic.
 
 ### Remaining gaps
 
-- `True Node` is still pending
-- `Chiron` is still pending for the `de421.bsp` path
-- a real no-Swiss full-chart smoke/integration run should still be treated as the final closeout step
+| Item | Notes |
+|------|-------|
+| True Node | iterative Moon–ecliptic convergence; Mean Node available now |
+| Part of Fortune | pure formula (ASC + Moon − Sun); no BSP needed |
+| Black Moon Lilith | mean lunar apogee; extend `mean_node_lon()` logic |
+| Minor aspects (Sesquisquare, Semisquare, Semisextile) | angle constants only |
+| Ceres, Pallas, Juno, Vesta | NAIF frames registered; need dedicated asteroid SPK kernel — DE planetary files only store planet positions |
+| Chiron | not in any standard DE file; JPL Horizons API integration is still absent |
+| CI: `swisseph` feature off by default | pending CI config update |
+| Full no-Swiss smoke test | end-to-end chart compute with zero Swiss/Kerykeion dependency |
 
 ### References
 
-- [MIGRATION.md](MIGRATION.md)
+- [ephemeris-manager](./ephemeris-manager/) — BSP catalog, download, asteroid bodies ← **new**
 - [docs/content/docs/architecture.md](docs/content/docs/architecture.md)
 - [src-tauri/src/astronomy.rs](src-tauri/src/astronomy.rs)
+- [src-tauri/src/ephemeris_manager.rs](src-tauri/src/ephemeris_manager.rs)
 - [backend-python/module/astronomy.py](backend-python/module/astronomy.py)

@@ -15,7 +15,8 @@ Operational guide for the Kefer desktop UI (React + Vite + Tauri).
 - Workspace open/save/defaults persistence are wired.
 - The create-new flow uses app-owned popover controls for time and location search.
 - Some secondary views are still presentational or prototype-oriented rather than fully chart-backed.
-- React does not currently expose the deepest feature coverage in the repo; Svelte still carries some richer screens and interactions.
+- React remains the clearer architectural reference for component decomposition and app-shell structure.
+- Svelte has closed much of the earlier radix/settings gap, but React still leads in reusable input primitives and overall shell organization.
 
 ## Prerequisites
 

@@ -25,16 +25,18 @@ It focuses on what the frontend can rely on today, including current no-op behav
 - Returns `Ok(Some(path))` when the user selects a folder.
 - Returns `Ok(None)` when the user cancels or no supported chooser succeeds.
 
-### `save_workspace(workspace_path, owner, charts) -> Result<String, String>`
+### `save_workspace(workspace_path, owner, charts, defaults?) -> Result<String, String>`
 
 - Creates `workspace.yaml` and `charts/*.yml` under `workspace_path`.
 - Sanitizes chart file names from chart ids.
+- Accepts an optional `defaults` payload and persists it into `workspace.yaml` alongside chart references.
 - Returns the `workspace_path` string on success.
 
 Acceptance criteria:
 
 - Saving a workspace with N charts creates N chart files and one `workspace.yaml`.
 - The saved manifest references the generated chart files.
+- When `defaults` is provided, workspace-level engine / house / location / aspect defaults are written into the saved manifest.
 
 ### `save_workspace_defaults(workspace_path, defaults) -> Result<Value, String>`
 
@@ -108,6 +110,13 @@ Acceptance criteria:
 - Intended for explicit user-triggered lookup, not per-keystroke autocomplete.
 - Returns an error when the query is empty or no result can be resolved.
 
+### `search_locations(query) -> Result<Vec<Value>, String>`
+
+- Resolves a free-form place query into multiple candidate locations.
+- Uses the configured geocoder endpoint, defaulting to Nominatim search.
+- Returns up to 5 candidates with `query`, `display_name`, `latitude`, and `longitude`.
+- Returns an error when the query is empty or lookup fails.
+
 ### `get_chart_details(workspace_path, chart_id) -> Result<Value, String>`
 
 - Returns the full chart payload needed by the React editor surface.
@@ -129,23 +138,24 @@ Recommended response metadata:
 - `warnings`
 - `ephemeris_source` when known
 
-### `compute_chart_from_data(chart_json) -> Result<Map<String, Value>, String>`
+### `compute_chart_from_data(app, backend_state, chart_json) -> Result<Map<String, Value>, String>`
 
 - Computes positions and aspects from an in-memory chart payload.
 - `chart_json.subject.event_time` must be parseable as `YYYY-MM-DD HH:mm:ss`, `YYYY-MM-DDTHH:mm:ss`, `YYYY-MM-DDTHH:mm:ssZ`, or RFC3339.
-- Returns an object with `positions`, `aspects`, `axes`, `house_cusps`, `chart_id`, and backend provenance fields when available.
+- Returns an object with `positions`, `motion`, `aspects`, `axes`, `house_cusps`, `chart_id`, and backend provenance fields when available.
 - Uses Python or Rust depending on backend selection and availability.
 
 Acceptance criteria:
 
 - A valid chart payload returns `positions`, `aspects`, and `chart_id`.
 - Rust-supported radix output should also include `axes` and `house_cusps`.
+- Rust-supported radix output should include `motion` when the selected backend can derive it.
 - When fallback occurs, the response should expose that fact instead of failing silently.
 
 ### `compute_chart(app, backend_state, workspace_path, chart_id) -> Result<Map<String, Value>, String>`
 
 - Loads a chart from workspace storage and computes positions and aspects.
-- Returns `positions`, `aspects`, `axes`, `house_cusps`, `chart_id`, and backend provenance fields when available.
+- Returns `positions`, `motion`, `aspects`, `axes`, `house_cusps`, `chart_id`, and backend provenance fields when available.
 - Uses Python or Rust depending on backend selection and availability.
 
 ### `compute_transit_series(...) -> Result<Value, String>`
@@ -166,7 +176,7 @@ Behavior:
 - `time_step_seconds` must be greater than `0`.
 - `end_datetime` must be greater than or equal to `start_datetime`.
 - Rust mode enforces a hard cap of `50_000` generated steps.
-- Returns a response with `source_chart_id`, `time_range`, `time_step`, and `results`.
+- Returns a response with `source_chart_id`, `time_range`, `time_step`, `results`, and backend provenance fields.
 
 Acceptance criteria:
 
@@ -174,11 +184,31 @@ Acceptance criteria:
 - Non-positive step returns an error.
 - A valid range returns ordered results with `datetime`, `transit_positions`, and `aspects`.
 
+## Ephemeris commands
+
+### `list_ephemeris_catalog() -> Vec<EphemerisInfo>`
+
+- Returns the current BSP catalog and local download status for each entry.
+- Each entry includes id, filename, URL, size, supported bodies, year coverage, default status, download status, and optional local path.
+
+### `download_ephemeris(id, app) -> Result<(), String>`
+
+- Starts downloading a BSP file from the built-in catalog into the app-data ephemeris cache.
+- Emits `ephemeris-progress` events while downloading and `ephemeris-ready` on completion.
+- Returns an error when the catalog id is unknown or the download fails.
+
+### `get_available_bodies() -> Vec<String>`
+
+- Returns the currently queryable body ids inferred from available BSP files.
+- This reflects file availability, not a guarantee that every body has a dedicated SPK segment in the loaded kernels.
+
 ## Storage commands
 
 Current Rust storage behavior is workspace-only.
 
 Computed positions, aspects, and relations are **not persisted** by the Rust desktop app.
+These compatibility commands remain registered so older frontend invoke paths keep working while
+workspace data continues to live in YAML and live computations come from the chart compute commands.
 
 ### `init_storage(workspace_path) -> Result<String, String>`
 
@@ -220,6 +250,7 @@ Acceptance criteria:
 
 - Frontend code may invoke these commands without crashing.
 - Frontend code must treat storage query results as empty unless a future spec introduces persisted computed storage.
+- Frontend code should use `compute_chart` / `compute_chart_from_data` / `compute_transit_series` for live computation, not these storage compatibility commands.
 
 ## Spec maintenance rule
 

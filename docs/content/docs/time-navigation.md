@@ -6,7 +6,7 @@ weight: 60
 
 # Time Navigation Architecture
 
-> **Note:** Code samples use Svelte; implement the same behavior with React state/hooks. See [frontend-react](./frontend-react/).
+> **Note:** Code samples use Svelte. Treat them as a design reference, not as a guarantee that the current implementation matches line-for-line. See [frontend-react](./frontend-react/) and [frontend-svelte](./frontend-svelte/) for current app status.
 
 ## Overview
 
@@ -17,6 +17,21 @@ The application needs to support precise time navigation for browsing computed a
 - **Quick navigation**: Jump forward/backward by selected step
 - **Time range selection**: Define start/end times for computation
 - **Current time tracking**: Track current position in time series
+
+## Current implementation note
+
+The live Svelte implementation already goes beyond the original examples in a few places:
+
+- it supports `months` and `years` in addition to `seconds`, `minutes`, `hours`, and `days`
+- it uses UTC-safe stepping for the main time navigation path
+- it includes an Astrolabe-style shift model layered on top of the current time
+
+It also still differs from the ideal reference architecture:
+
+- some radix update paths still mix in-memory computed payloads with compatibility-era query helpers
+- performance work has focused on reducing reactive churn and repeated backend loads during stepping
+
+When updating time navigation, use this document for intended behavior and `frontend-svelte.md` for current implementation status.
 
 ## UI Components
 

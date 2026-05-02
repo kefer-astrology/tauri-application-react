@@ -26,13 +26,17 @@ should keep astrology rules portable across Rust and Python paths.
 - `compute_chart_data_for_chart(...) -> ChartData`
   - Normalized Python chart-data seam used by backend-aware chart compute
   - Returns `positions`, `axes`, `house_cusps`, and `warnings`
+- `compute_aspects_for_chart(...) -> List[Dict[str, Any]]`
+  - Service-layer aspect seam is implemented
+  - Uses computed positions plus active aspect definitions and returns normalized aspect dictionaries
 - Python JPL chart-data responses now compute `axes` and `house_cusps`
 - CLI chart compute now consumes `ChartData` directly and exposes normalized provenance fields
 - Python transit-series responses expose provenance-oriented top-level metadata
 
 ### ⚠️ Needs Enhancement
 
-- Aspect computation (currently returns empty list)
+- Rust desktop storage compatibility commands still return empty computed-storage results; the Python aspect seam is not yet wired into those Rust no-op storage commands
+- `compute_aspects_for_chart(...)` still needs fuller validation coverage, especially around applying/separating behavior and environment parity
 - `/function-wrapper/module/` still needs these same seam updates mirrored over if it remains a parallel authoritative copy
 
 ### ❌ Not Yet Implemented
@@ -107,9 +111,10 @@ def compute_aspects_for_chart(
 
 **Implementation Notes:**
 
-- Use existing `compute_aspects` logic.
-- Convert `Aspect` objects to dictionaries.
-- Include applying/separating flags.
+- Implemented in `backend-python/module/services.py`.
+- Uses Python position computation plus active aspect definitions from the chart/workspace model.
+- Returns normalized aspect dictionaries for CLI and service consumers.
+- Still needs broader verification and any remaining mirror updates in `/function-wrapper/module/` if that copy stays active.
 
 ### 3. `compute_transit_series`
 
@@ -279,8 +284,8 @@ aspects = compute_aspects_for_chart(chart, ws=ws)
 ### Unit Tests
 
 - Validate swisseph (float positions)
-- Validate JPL (dict positions with required keys)
-- Validate aspects shape and required keys
+- Validate JPL/local BSP paths (dict positions with required keys)
+- Validate aspects shape, exact-angle normalization, and required keys
 
 ## Performance Notes
 
@@ -296,8 +301,9 @@ aspects = compute_aspects_for_chart(chart, ws=ws)
 - [x] Expose provenance fields in compute responses — `backend_used`, `fallback_used`, `ephemeris_source`, `warnings`
 - [x] Expose `axes` and `house_cusps` in chart compute responses
 - [x] Test Swiss-compatibility and JPL-oriented formats — timezone regression tests in `tests/test_timezone_alignment.py`
-- [ ] Implement `compute_aspects_for_chart` — aspects still returned empty from Python path
-- [ ] Update Rust to call Python aspect computation
+- [x] Implement `compute_aspects_for_chart` in the Python service seam
+- [ ] Add stronger regression coverage for `compute_aspects_for_chart`
+- [ ] Decide whether any Rust/Tauri callers should route aspect-only requests through Python instead of the current Rust storage compatibility no-op commands
 
 ### Phase 2: Transit Computation
 
@@ -318,6 +324,7 @@ aspects = compute_aspects_for_chart(chart, ws=ws)
 - [x] Add `ChartData` dataclass and `compute_chart_data()` to align Python protocol with Rust trait
 - [x] Update `compute_positions_for_chart` to use `compute_chart_data()` internally
 - [x] Compute Python JPL `axes` and `house_cusps`
+- [x] Keep a Python-native aspect seam alongside `ChartData`
 - [x] Update CLI chart compute to consume `ChartData` directly
 - [ ] Finish Stage 2 verification (`True Node`, `Chiron`, no-Swiss smoke, full env test run)
 - [ ] Mirror the same Python seam changes into `/function-wrapper/module/` if that copy remains authoritative

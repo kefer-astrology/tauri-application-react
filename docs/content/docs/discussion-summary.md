@@ -8,17 +8,43 @@ weight: 90
 
 > Historical planning notes from the earlier UI phase.
 > Keep this page as background only.
-> For the current migration state, use [MIGRATION.md](MIGRATION.md) and [spice-backend](./spice-backend/).
+> For the current migration state, use [MIGRATION.md](../../../MIGRATION.md), [architecture](./architecture/), [frontend-react](./frontend-react/), [frontend-svelte](./frontend-svelte/), and [spice-backend](./spice-backend/).
+
+## How to read this page
+
+This document captures an earlier architecture discussion, not the live implementation contract.
+Some ideas here aged well, some were only partially realized, and some are now explicitly outdated.
+
+### Still useful
+
+- backend-pluggable compute direction
+- YAML compatibility as a core constraint
+- the separation between chart definitions and computed data
+- the need for precise time navigation and transit-oriented workflows
+
+### Outdated or incomplete
+
+- DuckDB + Parquet are described here as the active computed-data persistence model; that is not the current live Rust desktop behavior
+- several sections assume the earlier Svelte-first UI phase
+- some checklists below describe planned work that was later implemented differently, deferred, or replaced by Tauri/Rust-first paths
+
+### Prefer these docs for live state
+
+1. [architecture](./architecture/)
+2. [frontend-react](./frontend-react/)
+3. [frontend-svelte](./frontend-svelte/)
+4. [tauri-command-contracts](./tauri-command-contracts/)
+5. [spice-backend](./spice-backend/)
 
 ## Your Key Requirements
 
 1. ✅ **User defines initial conditions** → UI forms → Tauri commands → compute routing
 2. ✅ **Python can handle computation** → optional sidecar with CLI interface
-3. ✅ **Persistent local storage** → DuckDB + Parquet for time series
+3. ⚠️ **Persistent local storage** → this page assumes DuckDB + Parquet for time series; the current Rust desktop app does not persist computed chart data that way
 4. ✅ **YAML compatibility** → Keep workspace/charts in YAML (same as Python package)
 5. ✅ **2-chart relations** → Primary use case (transits, synastry)
 6. ✅ **3-body relations** → Future-proof schema design
-7. ✅ **Query-optimized** → DuckDB indexes and Parquet partitioning
+7. ⚠️ **Query-optimized** → discussed here in DuckDB/Parquet terms; current runtime reality is more mixed and command-driven
 
 ## Architecture Decisions
 
@@ -150,7 +176,7 @@ WHERE chart_id IN (
 );
 ```
 
-## Implementation Phases
+## Historical implementation phases
 
 ### Phase 1: Basic Chart Creation (Week 1-2)
 
@@ -253,10 +279,14 @@ WHERE chart_id IN (
 
 ## Next Steps
 
+These were the original suggested next steps at the time of writing:
+
 1. **Review this architecture** - Does it match your vision?
 2. **Answer open questions** - Make decisions on granularity, storage, etc.
 3. **Start Phase 1** - Implement basic chart creation
 4. **Iterate** - Build incrementally, test with real data
+
+For current work planning, do not continue from this section directly. Start from the live frontend/backend docs listed above.
 
 ## Key Files to Create
 

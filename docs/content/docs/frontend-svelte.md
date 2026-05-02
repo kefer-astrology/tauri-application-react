@@ -6,14 +6,19 @@ weight: 25
 
 # Svelte frontend (alternate Tauri shell)
 
-`apps/web-svelte` is the Svelte port of the app. It currently carries more feature depth than the React shell, so it is useful both as an implementation reference and as an alternate desktop target.
+`apps/web-svelte` is the alternate Svelte port of the app. It is no longer the unequivocally "more advanced" shell in every area: some radix, settings, and workspace behavior have been pulled much closer to React, while other screens are still behind React or remain more prototype-like.
 
 ## Current status
 
-- Svelte currently exposes a broader interactive surface than React in several areas.
+- Svelte now has substantially better parity with the React radix experience than it did originally:
+  - richer workspace defaults for observable bodies, aspects, aspect colors, and aspect line tier settings
+  - React-like wheel geometry and element-based zodiac coloring
+  - UTC-safe time stepping with `seconds`, `minutes`, `hours`, `days`, `months`, and `years`
+  - translation packs generated from the same `translations.csv` source as React
 - It includes a wired transit compute flow through Tauri `compute_transit_series`.
-- It also still carries more compatibility-era assumptions than React in some places, especially around storage/query helpers.
-- Treat it as a valuable functional reference, but not as a guarantee that every internal path is already on the final desktop persistence model.
+- It still carries more compatibility-era assumptions than React in some places, especially around storage/query helpers and in-memory fallbacks.
+- Recent performance fixes removed several avoidable reactive loops and backend reload paths, but Svelte is still the shell where interaction/performance polish needs the most care.
+- Treat it as a valuable alternate target and implementation surface, but not as a guarantee that every internal path is already on the final desktop persistence model.
 
 ## Commands
 
@@ -53,6 +58,74 @@ npm run docs:prepare          # Builds all frontends and copies them into docs/s
 - Those primitives are the Svelte-side equivalent of the repo’s shadcn-style component layer and should be the first place to extend styling behavior.
 - Styling should flow through shared tokens, variants, spacing, and wrappers before adding one-off component CSS.
 - When two views are structurally similar, prefer extracting a shared panel, menu, or content container rather than repeating another mode-specific block inside `App.svelte`.
+
+## Current behavior notes
+
+- Main radix composition currently lives across:
+  - `apps/web-svelte/src/App.svelte`
+  - `apps/web-svelte/src/lib/components/MiddleContent.svelte`
+  - `apps/web-svelte/src/lib/components/RadixChart.svelte`
+  - `apps/web-svelte/src/lib/components/TimeNavigationPanel.svelte`
+- Workspace defaults and chart payload building are centralized in:
+  - `apps/web-svelte/src/lib/state/layout.svelte.ts`
+- Shared time-navigation state lives in:
+  - `apps/web-svelte/src/lib/stores/timeNavigation.svelte.ts`
+- Query helpers and compatibility fallbacks live in:
+  - `apps/web-svelte/src/lib/stores/data.svelte.ts`
+
+## Frontend parity snapshot
+
+The table below is the practical React-to-Svelte parity snapshot as of the current branch.
+It is intentionally feature-oriented rather than file-oriented so it can serve as a restart
+checklist for future sync work.
+
+| Area | React reference | Svelte status | Notes |
+| --- | --- | --- | --- |
+| Workspace defaults and persistence | `apps/web-react/src/lib/tauri/chartPayload.ts`, `apps/web-react/src/app/components/settings-view.tsx` | **Mostly synced** | Svelte now persists default bodies, aspects, aspect orbs, aspect colors, and aspect line tier settings through workspace defaults. |
+| Translation source | `translations.csv`, `scripts/csv-to-locales.mjs` | **Synced** | React and Svelte locale packs are generated from the same CSV source and should be treated as a single pipeline. |
+| Current Sky bootstrap | `apps/web-react/src/lib/tauri/chartPayload.ts` | **Synced in behavior** | Svelte now boots a real `Current Sky` chart with workspace defaults instead of leaving the radix empty. |
+| Radix wheel geometry | `apps/web-react/src/app/components/horoscope-wheel.tsx` | **Partially synced** | Svelte wheel structure, house cusp handling, aspect drawing, and element coloring were pulled much closer to React, but rendering polish is not yet 1:1. |
+| Radix wheel coloring | `apps/web-react/src/app/components/horoscope-wheel.tsx` | **Partially synced** | Element-based zodiac coloring is present in Svelte; finer React wheel tint/filter details still differ. |
+| Radix dashboard composition | `apps/web-react/src/app/components/horoscope-dashboard.tsx` | **Partially synced** | Svelte profile panel, astrolabe values, and right-side positions are closer to React, but the full interaction model is still less unified. |
+| Astrolabe stepping model | `apps/web-react/src/app/components/horoscope-dashboard.tsx` | **Partially synced** | Svelte supports UTC-safe stepping and `months`/`years`, but still needs more UI and flow parity with the React dashboard experience. |
+| Astrolabe shift rendering stability | React dashboard update flow | **Improved, not final** | Svelte now keeps the last wheel rendered during loading and guards against stale async position results, reducing visible flicker. |
+| JPL runtime behavior during radix interaction | React uses the same backend layer | **Synced at backend level** | The Rust JPL backend now caches loaded `Almanac` instances by BSP path set, so Svelte no longer repeatedly reloads `de440s.bsp` while stepping. |
+| Settings screen coverage | `apps/web-react/src/app/components/settings-view.tsx` | **Mostly synced** | Svelte covers language, location, house system, observable objects, aspects, and appearance, but still differs in some UX details and component richness. |
+| Location selector UX | `apps/web-react/src/app/components/location-selector.tsx` | **Not yet synced** | React has a reusable popover/search location selector; Svelte still relies on simpler text-entry flows in most places. |
+| Time picker UX | `apps/web-react/src/app/components/time-roller-picker.tsx` | **Not yet synced** | Svelte does not yet have a React-equivalent reusable time roller / richer time input control. |
+| Information view | `apps/web-react/src/app/components/information-view.tsx` | **Not synced** | React’s information screen is much richer; Svelte info mode remains significantly lighter. |
+| Transits configuration UI | `apps/web-react/src/app/components/transits-content.tsx`, `transits-bodies-config.tsx` | **Partially synced** | Svelte has real Tauri `compute_transit_series` wiring, but its transits screen organization and configurator UX still trail the React component set. |
+| Open/save workspace flows | `apps/web-react/src/lib/tauri/workspace.ts`, React app shell | **Functionally available** | Svelte can open workspaces and use workspace defaults, but React’s app composition around those flows is cleaner. |
+| App-shell decomposition | `apps/web-react/src/app/` + providers/components split | **Behind React** | Svelte still centralizes a lot of orchestration in `App.svelte`, which makes parity work and performance tuning harder than in React. |
+
+## Recent performance fixes
+
+The current Svelte branch already includes several important stability/performance fixes that are easy to regress:
+
+- Language switching no longer mirrors local selector state through multiple `$effect` loops; selectors are controlled directly from global i18n state.
+- Astrolabe/radix updates no longer replace the wheel with a full loading placeholder on every shift step; the last wheel stays rendered and loading is shown as an overlay badge.
+- Position loading in `MiddleContent.svelte` now uses stable request keys so chart recomputation does not automatically retrigger the same expensive fetches.
+- The JPL backend now caches loaded `anise::Almanac` instances by BSP path set, so radix interaction does not repeatedly reload `de440s.bsp`.
+- Default observable bodies no longer auto-enable unsupported asteroid SPK lookups in fresh/default flows.
+
+When debugging new sluggishness, check those paths first before adding more reactive effects.
+
+## Remaining parity priorities
+
+If parity work resumes later, the highest-value remaining items are:
+
+1. Finish radix dashboard parity:
+   align the combined profile / astrolabe / positions interaction model more closely with React `horoscope-dashboard.tsx`.
+2. Finish wheel polish parity:
+   continue bringing `RadixChart.svelte` closer to React `horoscope-wheel.tsx` in rendering detail, glyph treatment, and update smoothness.
+3. Port richer input primitives:
+   add Svelte equivalents for React `location-selector.tsx` and `time-roller-picker.tsx`.
+4. Port or redesign the information view:
+   React `information-view.tsx` remains the biggest single feature-screen gap.
+5. Improve transits screen parity:
+   keep the existing wired compute flow, but bring the configuration UI closer to React’s dedicated transits components.
+6. Continue decomposition of `App.svelte`:
+   move orchestration and mode-specific logic into focused components/stores so future parity and performance work becomes cheaper.
 
 ## Shared static assets
 
@@ -112,3 +185,4 @@ The root scripts wrap those configs so you can switch foregrounds without editin
 - Svelte can render from real computed chart payloads returned by Tauri.
 - Some Svelte data helpers also call storage compatibility commands such as `query_positions`.
 - In the current desktop app, those storage commands do not persist computed data in Rust, so Svelte may fall back to in-memory chart computation results when query calls return empty data.
+- Because of that mixed model, performance investigation should always consider both frontend reactivity and backend command frequency, not just visible render code.

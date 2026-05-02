@@ -44,9 +44,8 @@ Tracking items for automation; not implemented yet.
 - Python sidecar: keep it optional in CI while Rust/no-sidecar is the baseline. When needed, build `kefer-backend` (or your binary name) and attach it as a separate artifact or release asset instead of making desktop bundle jobs depend on it.
 - Code signing / notarization secrets (Windows, macOS) — only when you are ready to release.
 
+## 4. Scope note
 
-## 4. seriously replace all svgs 
+This page is only for CI / automation follow-up.
 
-## 5 . color changes
-
-## 6. theme selector button is not 
+UI cleanup items such as SVG replacement, color tweaks, or theme-selector polish should be tracked in frontend planning docs or issue/backlog tooling instead of here.

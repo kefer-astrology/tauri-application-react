@@ -12,7 +12,7 @@ Start here for how the Kefer desktop app is structured and how to work on it.
 
 | Layer                                      | Role                                                                                       |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| **Frontends** (`apps/web-react/`, `apps/web-svelte/`) | UI workspaces. React is the current primary shell; Svelte is the more advanced alternate build. |
+| **Frontends** (`apps/web-react/`, `apps/web-svelte/`) | UI workspaces. React is the current primary shell; Svelte is the alternate shell and parity target in several feature areas. |
 | **Tauri** (`src-tauri/`)                   | Native window, `invoke` commands, workspace orchestration, and local compute routing.      |
 | **Python** (`backend-python/`)             | Optional computation sidecar and compatibility path; not the only compute owner.           |
 | **Static assets** (`static/` at repo root) | Shared public assets for both frontends: `app-shell/**`, `glyphs/**`, favicon, and shared SVG families copied into each frontend build. |
@@ -29,7 +29,8 @@ Start here for how the Kefer desktop app is structured and how to work on it.
 - **[frontend-react](./frontend-react/)** — React + Vite + Tauri wiring, Tauri API layer, assets, dev commands.
 - **[ui-conventions](./ui-conventions/)** — Four themes, `sidebarThemeStyles`, secondary nav, and i18n workflow.
 - **[architecture](./architecture/)** — Cross-layer model and current storage status.
-- **[spice-backend](./spice-backend/)** — Planned JPL/SPICE backend architecture and module boundaries.
+- **[spice-backend](./spice-backend/)** — JPL/SPICE backend architecture, `anise` assessment, implementation status.
+- **[ephemeris-manager](./ephemeris-manager/)** — Multi-BSP catalog, de440s upgrade, asteroid bodies, download API.
 - **[tauri-command-contracts](./tauri-command-contracts/)** — Current command-level behavior reference for the desktop app.
 - **[python-package](./python-package/)** — Python compatibility/backend contract and planned extensions.
 
@@ -48,7 +49,7 @@ For Codex-facing workflow and specs rules, start in **`/llm/`**, not here.
 - Astrology semantics such as zodiac system, houses, ayanamsha, aspect rules, and tradition defaults should live above the astronomy backend.
 - Swiss Ephemeris remains valuable as a compatibility and validation backend, but should not define the whole system shape.
 
-## Historical / planning notes
+## Planning notes
 
 - **[discussion-summary](./discussion-summary/)** and **[implementation-plan](./implementation-plan/)** predate the React shell. Use them for background only; prefer **[frontend-react](./frontend-react/)** and **[ui-conventions](./ui-conventions/)** for the live codebase.
 

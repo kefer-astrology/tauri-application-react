@@ -16,22 +16,26 @@ Consolidated architecture reference for the Tauri desktop app and its computatio
 - **Storage**: YAML workspace manifests and chart files are the active persistence layer.
 - **Workspace defaults**: workspace-level settings can be persisted independently to `workspace.yaml` without rewriting all chart files.
 - **Computed data**: Positions, aspects, and transit-series results are computed on demand and are not persisted by the Rust desktop app.
+- **Ephemeris management**: Rust manages bundled and downloaded BSP files through the ephemeris manager command surface.
 - **Shared assets**: repo-root `static/` is the source of truth for app-shell logos/icons and astrology glyph sets used by both frontends.
 
 ## Current runtime state
 
-This section describes the app as it behaves today, without assuming future migration steps.
+This section describes the app as it behaves today.
 
 - **Workspace persistence**: chart definitions and workspace defaults are persisted in YAML under a workspace folder.
 - **Workspace defaults**: workspace-level settings can be updated directly in `workspace.yaml` through `save_workspace_defaults(...)`.
+- **Chart import**: native YAML chart files can be imported directly into a workspace; `.sfs` remains explicitly unsupported in the current Rust path.
 - **Computed chart data**: chart positions, axes, house cusps, aspects, and transit-series results are computed on demand and kept in memory.
 - **Computed storage**: the Rust desktop app does not currently persist computed positions/aspects/relations as a queryable local database layer.
 - **Backend routing**: all frontend calls go through Tauri. Tauri then routes computation to Rust or Python depending on backend selection and backend availability.
 - **Auto routing**: `KEFER_COMPUTE_BACKEND=Auto` currently prefers Python when the sidecar is available and falls back to Rust otherwise.
 - **Rust compute**: Rust has a real local compute path for chart and transit work.
-- **Python compute**: Python also has a real compute path and remains part of the active runtime contract, not just a historical reference.
+- **Python compute**: Python also has a real compute path and remains part of the active runtime contract.
+- **Geocoding**: location lookup is handled in Rust through a configurable Nominatim-style HTTP endpoint.
+- **Ephemeris downloads**: BSP discovery, cache management, and download status are handled in Rust through the ephemeris manager.
 - **React status**: the main React horoscope flow uses real Tauri-backed chart computation; some secondary screens are still prototype/presentational.
-- **Svelte status**: the Svelte shell currently exposes more end-user surface area, including a wired transit compute flow, but some data access still passes through compatibility-era storage commands and in-memory fallbacks.
+- **Svelte status**: the Svelte shell now has much better radix/settings parity with React than before and still carries a wired transit compute flow, but some data access continues to pass through compatibility-era storage commands and in-memory fallbacks.
 
 ## Core Principles
 
@@ -48,11 +52,12 @@ This section describes the app as it behaves today, without assuming future migr
 - Tauri owns command routing and workspace I/O.
 - Rust chart compute is backend-pluggable through the local astronomy layer.
 - Python remains available as an active compute backend behind Tauri routing.
+- Rust compute currently returns backend provenance fields and, in the local path, includes motion/axes/house-cusp metadata with chart results.
 - Default backend selection is operationally:
   - `Auto`: Python when available, Rust otherwise.
   - `Python`: Python only.
   - `Rust`: Rust only.
-- Response metadata is intended to expose which backend actually handled the request.
+- Response metadata is expected to expose which backend actually handled the request.
 
 ## Non-final surfaces today
 
@@ -162,7 +167,7 @@ UI consumes returned in-memory results and derives or displays aspects as requir
 
 - `apps/web-react/src/lib/tauri/` — types and `invoke` helpers (`openWorkspaceFolder`, `saveWorkspace`, etc.).
 - `apps/web-react/src/app/App.tsx` — workspace open/save from the sidebar; extend with chart editors and data views.
-- `apps/web-svelte/src/` — alternate Svelte workspace with the more advanced panel/radix/transits UI.
+- `apps/web-svelte/src/` — alternate Svelte workspace with the parity-in-progress panel/radix/transits UI.
 - `static/app-shell/` — shared app-shell logos and icon sets (`default`, `modern`) for both frontends.
 - `static/glyphs/` — shared glyph families (`default`, `modern`) for both frontends.
 
@@ -181,7 +186,7 @@ UI consumes returned in-memory results and derives or displays aspects as requir
 ## Tauri Commands (High-Level)
 
 **Invoked from frontend today:**  
-`read`, `write`, `open_folder_dialog`, `load_workspace`, `save_workspace`, `save_workspace_defaults`, `get_workspace_defaults`, `get_chart_details`, `init_storage`, `compute_chart`, `compute_chart_from_data`, `compute_transit_series`, `create_chart`, `update_chart`, `query_positions`, `compute_aspects`, `query_radix_relative`.
+`read`, `write`, `list_ephemeris_catalog`, `download_ephemeris`, `get_available_bodies`, `open_folder_dialog`, `resolve_location`, `search_locations`, `load_workspace`, `save_workspace`, `save_workspace_defaults`, `get_workspace_defaults`, `get_chart_details`, `init_storage`, `compute_chart`, `compute_chart_from_data`, `compute_transit_series`, `create_chart`, `import_chart`, `update_chart`, `query_positions`, `compute_aspects`, `query_radix_relative`.
 
 **Registered but not yet used from UI (reserved for future wiring):**  
 `store_positions`, `store_relation`, `query_timestamps`, `create_workspace`, `delete_workspace`, `delete_chart`.
