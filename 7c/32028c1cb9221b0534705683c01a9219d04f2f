@@ -1,0 +1,12 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.3.4",
+  "base_commit_sha": "7c32028c1cb9221b0534705683c01a9219d04f2f",
+  "prompts": {},
+  "humans": {
+    "h_48e40f5ab776de": {
+      "author": "kubow"
+    }
+  }
+}
