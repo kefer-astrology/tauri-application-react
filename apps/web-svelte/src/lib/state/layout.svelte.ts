@@ -1,6 +1,14 @@
 // Runes global state (no stores, no classes)
 
-import { DEFAULT_OBSERVABLE_OBJECT_IDS } from '$lib/astrology/observableObjects';
+import { DEFAULT_ENABLED_OBSERVABLE_OBJECT_IDS } from '$lib/astrology/observableObjects';
+import {
+  ASPECT_ROWS,
+  DEFAULT_ASPECT_COLORS,
+  DEFAULT_ASPECT_LINE_TIER_STYLE,
+  DEFAULT_ASPECT_ORBS,
+  normalizeAspectLineTierStyle,
+  type AspectLineTierStyleState
+} from '$lib/astrology/aspects';
 
 export const tabs = ['Radix', 'Aspects', 'Transits', 'Settings', 'About'] as const;
 export type Tab = (typeof tabs)[number];
@@ -46,6 +54,9 @@ export interface WorkspaceDefaultsState {
   engine: string | null;
   defaultBodies: string[];
   defaultAspects: string[];
+  defaultAspectOrbs: Record<string, number>;
+  defaultAspectColors: Record<string, string>;
+  aspectLineTierStyle: AspectLineTierStyleState;
 }
 
 const DEFAULT_WORKSPACE_DEFAULTS: WorkspaceDefaultsState = {
@@ -56,8 +67,11 @@ const DEFAULT_WORKSPACE_DEFAULTS: WorkspaceDefaultsState = {
   locationLatitude: 50.0875,
   locationLongitude: 14.4214,
   engine: 'swisseph',
-  defaultBodies: [...DEFAULT_OBSERVABLE_OBJECT_IDS],
-  defaultAspects: [],
+  defaultBodies: [...DEFAULT_ENABLED_OBSERVABLE_OBJECT_IDS],
+  defaultAspects: ASPECT_ROWS.map((aspect) => aspect.id),
+  defaultAspectOrbs: { ...DEFAULT_ASPECT_ORBS },
+  defaultAspectColors: { ...DEFAULT_ASPECT_COLORS },
+  aspectLineTierStyle: { ...DEFAULT_ASPECT_LINE_TIER_STYLE }
 };
 
 export type Mode =
@@ -124,6 +138,21 @@ export function setWorkspaceDefaults(defaults: Partial<WorkspaceDefaultsState>) 
     engine: asNonEmpty(defaults.engine) ?? layout.workspaceDefaults.engine,
     defaultBodies: Array.isArray(defaults.defaultBodies) ? [...defaults.defaultBodies] : layout.workspaceDefaults.defaultBodies,
     defaultAspects: Array.isArray(defaults.defaultAspects) ? [...defaults.defaultAspects] : layout.workspaceDefaults.defaultAspects,
+    defaultAspectOrbs:
+      defaults.defaultAspectOrbs && typeof defaults.defaultAspectOrbs === 'object'
+        ? { ...layout.workspaceDefaults.defaultAspectOrbs, ...defaults.defaultAspectOrbs }
+        : layout.workspaceDefaults.defaultAspectOrbs,
+    defaultAspectColors:
+      defaults.defaultAspectColors && typeof defaults.defaultAspectColors === 'object'
+        ? { ...layout.workspaceDefaults.defaultAspectColors, ...defaults.defaultAspectColors }
+        : layout.workspaceDefaults.defaultAspectColors,
+    aspectLineTierStyle:
+      defaults.aspectLineTierStyle
+        ? normalizeAspectLineTierStyle({
+            ...layout.workspaceDefaults.aspectLineTierStyle,
+            ...defaults.aspectLineTierStyle
+          })
+        : layout.workspaceDefaults.aspectLineTierStyle
   };
 }
 
@@ -249,6 +278,8 @@ export function chartDataToComputePayload(chart: ChartData): Record<string, unkn
       override_ephemeris: overrideEphemeris,
       model,
       observable_objects: observableObjects,
+      selected_aspects: [...defaults.defaultAspects],
+      aspect_orbs: defaults.defaultAspectOrbs,
     },
     tags: chart.tags ?? [],
   };

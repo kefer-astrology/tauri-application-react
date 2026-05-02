@@ -3,6 +3,7 @@
   import { Button } from '$lib/components/ui/button/index.js';
   import { Input } from '$lib/components/ui/input/index.js';
   import { t } from '$lib/i18n/index.svelte';
+  import { DEFAULT_ASPECT_LINE_TIER_STYLE } from '$lib/astrology/aspects';
   import {
     layout,
     loadChartsFromWorkspace,
@@ -73,6 +74,17 @@
           default_engine?: string | null;
           default_bodies?: string[] | null;
           default_aspects?: string[] | null;
+          default_aspect_orbs?: Record<string, number> | null;
+          default_aspect_colors?: Record<string, string> | null;
+          aspect_line_tier_style?: {
+            tight_threshold_pct?: number | null;
+            medium_threshold_pct?: number | null;
+            loose_threshold_pct?: number | null;
+            width_tight?: number | null;
+            width_medium?: number | null;
+            width_loose?: number | null;
+            width_outer?: number | null;
+          } | null;
         }>('get_workspace_defaults', { workspacePath: folderPath });
 
         setWorkspaceDefaults({
@@ -84,6 +96,33 @@
           engine: workspaceDefaults.default_engine ?? undefined,
           defaultBodies: workspaceDefaults.default_bodies ?? undefined,
           defaultAspects: workspaceDefaults.default_aspects ?? undefined,
+          defaultAspectOrbs: workspaceDefaults.default_aspect_orbs ?? undefined,
+          defaultAspectColors: workspaceDefaults.default_aspect_colors ?? undefined,
+          aspectLineTierStyle: workspaceDefaults.aspect_line_tier_style
+            ? {
+                tightThresholdPct:
+                  workspaceDefaults.aspect_line_tier_style.tight_threshold_pct ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.tightThresholdPct,
+                mediumThresholdPct:
+                  workspaceDefaults.aspect_line_tier_style.medium_threshold_pct ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.mediumThresholdPct,
+                looseThresholdPct:
+                  workspaceDefaults.aspect_line_tier_style.loose_threshold_pct ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.looseThresholdPct,
+                widthTight:
+                  workspaceDefaults.aspect_line_tier_style.width_tight ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.widthTight,
+                widthMedium:
+                  workspaceDefaults.aspect_line_tier_style.width_medium ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.widthMedium,
+                widthLoose:
+                  workspaceDefaults.aspect_line_tier_style.width_loose ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.widthLoose,
+                widthOuter:
+                  workspaceDefaults.aspect_line_tier_style.width_outer ??
+                  DEFAULT_ASPECT_LINE_TIER_STYLE.widthOuter
+              }
+            : undefined,
         });
       } catch (defaultsErr) {
         console.warn('Failed to load workspace defaults, using current defaults:', defaultsErr);
@@ -209,7 +248,18 @@
           default_location_longitude: layout.workspaceDefaults.locationLongitude,
           default_engine: layout.workspaceDefaults.engine,
           default_bodies: layout.workspaceDefaults.defaultBodies,
-          default_aspects: layout.workspaceDefaults.defaultAspects
+          default_aspects: layout.workspaceDefaults.defaultAspects,
+          default_aspect_orbs: layout.workspaceDefaults.defaultAspectOrbs,
+          default_aspect_colors: layout.workspaceDefaults.defaultAspectColors,
+          aspect_line_tier_style: {
+            tight_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.tightThresholdPct,
+            medium_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.mediumThresholdPct,
+            loose_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.looseThresholdPct,
+            width_tight: layout.workspaceDefaults.aspectLineTierStyle.widthTight,
+            width_medium: layout.workspaceDefaults.aspectLineTierStyle.widthMedium,
+            width_loose: layout.workspaceDefaults.aspectLineTierStyle.widthLoose,
+            width_outer: layout.workspaceDefaults.aspectLineTierStyle.widthOuter
+          }
         }
       });
       await invoke<string>('init_storage', { workspacePath: folderPath });

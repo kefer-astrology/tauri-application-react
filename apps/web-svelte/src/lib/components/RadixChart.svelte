@@ -1,416 +1,424 @@
-<!-- Radix Chart Component - Interactive SVG polar chart -->
 <script lang="ts">
-  import { effectiveTime } from '$lib/stores/timeNavigation.svelte';
-  import { glyphs, getGlyphContent } from '$lib/stores/glyphs.svelte';
-  
-  // Props
+  import {
+    DEFAULT_ASPECT_LINE_TIER_STYLE,
+    DEFAULT_ASPECT_ORBS,
+    type AspectLineTierStyleState
+  } from '$lib/astrology/aspects';
+  import { getGlyphContent } from '$lib/stores/glyphs.svelte';
+
   interface Props {
     size?: number;
-    planetPositions?: Record<string, { degrees: number; sign: string; house?: number }>; // planet -> position data
-    houseCusps?: number[]; // 12 house cusp positions in degrees (0-360)
-    aspects?: Array<{ from: string; to: string; type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'opposition' }>;
-    infoBlobs?: Array<{ degrees: number; content: string }>; // 3 information blobs
+    planetPositions?: Record<string, { degrees: number; sign: string; house?: number }>;
+    houseCusps?: number[];
+    aspects?: Array<{
+      from: string;
+      to: string;
+      type: 'conjunction' | 'sextile' | 'square' | 'trine' | 'quincunx' | 'opposition';
+      orb?: number;
+    }>;
+    aspectColors?: Record<string, string>;
+    aspectOrbs?: Record<string, number>;
+    aspectLineTierStyle?: AspectLineTierStyleState;
   }
-  
-  let { 
+
+  let {
     size = 400,
     planetPositions = {},
     houseCusps = [],
     aspects = [],
-    infoBlobs = []
+    aspectColors = {},
+    aspectOrbs = DEFAULT_ASPECT_ORBS,
+    aspectLineTierStyle = DEFAULT_ASPECT_LINE_TIER_STYLE
   }: Props = $props();
+
   let failedGlyphFiles = $state<Record<string, boolean>>({});
-  
-  // Default info blobs if not provided (3 blobs at 120-degree intervals)
-  const defaultInfoBlobs = $derived(
-    infoBlobs.length > 0
-      ? infoBlobs
-      : [
-          { degrees: 0, content: 'Info 1' },
-          { degrees: 120, content: 'Info 2' },
-          { degrees: 240, content: 'Info 3' }
-        ]
-  );
-  
-  // Reactive to time changes
-  const currentTime = $derived(effectiveTime());
-  
-  // Chart dimensions – percentage from outer to center: 9% houses, 3% second circle, 40% dark blue, rest inner
-  const centerX = $derived(size / 2);
-  const centerY = $derived(size / 2);
-  const maxRadius = $derived(size * 0.48);
 
-  // Radii as % of maxRadius: ~11% house ring, 4% second circle, dark blue, rest inner
-  const outerBorderRadius = $derived(maxRadius);
-  const housesOuter = $derived(maxRadius);
-  const housesInner = $derived(maxRadius * 0.89);   // 11% house ring (wider)
-  const zodiacStripOuter = $derived(maxRadius * 0.89);
-  const zodiacStripInner = $derived(maxRadius * 0.85);  // 4% strip: 89% → 85%
-  const darkBlueOuter = $derived(maxRadius * 0.85);
-  const darkBlueInner = $derived(maxRadius * 0.54);
-  const innerCircleRadius = $derived(maxRadius * 0.54);
-  const centerDarkOuter = $derived(maxRadius * 0.18);
-  const centerDarkInner = $derived(0);
-  const aspectRadius = $derived(maxRadius * 0.14);
-  const planetGlyphRadius = $derived(maxRadius * 0.76);
-  const angleTextRadius = $derived(maxRadius * 0.65);
-  const degreeTextRadius = $derived(maxRadius * 0.60); // kept for compatibility (single label uses angleTextRadius)
-  const partSize = $derived(maxRadius * 0.04);
-  // House sign glyphs: sized for readability, placed just inside dark blue (so they’re visible)
-  const zodiacStripGlyphSize = $derived(Math.max(14, partSize * 2));
-  const zodiacStripGlyphRadius = $derived(housesOuter - partSize * 1.15);
+  const VIEWBOX_SIZE = 800;
+  const center = VIEWBOX_SIZE / 2;
+  const outerRadius = 320;
+  const innerRadius = 270;
+  const innerCenterRing = 184;
+  const innerCenterCore = 152;
+  const glyphRadialOutset = 3;
+  const planetRadius = (innerRadius + innerCenterRing) / 2 - 8 + glyphRadialOutset;
+  const radixAspectChordRadius = (innerCenterCore + innerCenterRing) / 2;
+  const zodiacRadius = (innerRadius + outerRadius) / 2 + glyphRadialOutset;
+  const angleMarkerRadius = outerRadius + 22;
 
-  // Outer circle: 4 elements (fire, earth, air, water) – colors from CSS vars (Settings > Vzhled)
-  const ELEMENT_VARS = ['var(--element-fire)', 'var(--element-earth)', 'var(--element-air)', 'var(--element-water)'] as const;
-  const ringColorIndex = (segmentIndex: number) => segmentIndex % 4;
-  const zodiacColor = (signIndex: number) => ELEMENT_VARS[ringColorIndex(signIndex)];
-  const houseColor = (houseIndex: number) => ELEMENT_VARS[ringColorIndex(houseIndex)];
+  const zodiacSigns = [
+    { id: 'aries', icon: '♈', angle: 0 },
+    { id: 'taurus', icon: '♉', angle: 30 },
+    { id: 'gemini', icon: '♊', angle: 60 },
+    { id: 'cancer', icon: '♋', angle: 90 },
+    { id: 'leo', icon: '♌', angle: 120 },
+    { id: 'virgo', icon: '♍', angle: 150 },
+    { id: 'libra', icon: '♎', angle: 180 },
+    { id: 'scorpio', icon: '♏', angle: 210 },
+    { id: 'sagittarius', icon: '♐', angle: 240 },
+    { id: 'capricorn', icon: '♑', angle: 270 },
+    { id: 'aquarius', icon: '♒', angle: 300 },
+    { id: 'pisces', icon: '♓', angle: 330 }
+  ] as const;
 
-  // Zodiac sign names in order (Aries 0° = index 1)
-  const zodiacSignNames = ['pisces', 'aries', 'taurus', 'gemini', 'cancer', 'leo', 'virgo', 'libra', 'scorpio', 'sagittarius', 'capricorn', 'aquarius'];
-  const signNameFromDegree = (deg: number) => zodiacSignNames[(Math.floor(((deg % 360) + 360) % 360 / 30) + 1) % 12];
+  const ANGLE_IDS = new Set(['asc', 'desc', 'dsc', 'mc', 'ic']);
+  const ELEMENT_BY_SIGN: Record<string, 'fire' | 'earth' | 'air' | 'water'> = {
+    aries: 'fire',
+    leo: 'fire',
+    sagittarius: 'fire',
+    taurus: 'earth',
+    virgo: 'earth',
+    capricorn: 'earth',
+    gemini: 'air',
+    libra: 'air',
+    aquarius: 'air',
+    cancer: 'water',
+    scorpio: 'water',
+    pisces: 'water'
+  };
 
-  // Default house cusps (every 30 degrees if not provided)
-  const defaultHouseCusps = $derived(
-    houseCusps.length === 12 
-      ? houseCusps 
-      : Array.from({ length: 12 }, (_, i) => i * 30)
-  );
-  
-  // Default planet positions if not provided (fallback only)
-  const defaultPlanets = $derived({
-    sun: { degrees: 120, sign: 'aquarius', house: 12 },
-    moon: { degrees: 45, sign: 'aquarius', house: 10 },
-    mercury: { degrees: 100, sign: 'aquarius', house: 8 },
-    venus: { degrees: 200, sign: 'aquarius', house: 6 },
-    mars: { degrees: 300, sign: 'aquarius', house: 4 },
-    jupiter: { degrees: 40, sign: 'aquarius', house: 2 }
+  const fallbackBodies = {
+    sun: { degrees: 249.7833, sign: 'sagittarius' },
+    moon: { degrees: 48.3833, sign: 'taurus' },
+    mercury: { degrees: 242.25, sign: 'sagittarius' },
+    venus: { degrees: 236.1333, sign: 'scorpio' },
+    mars: { degrees: 14.7, sign: 'aries' },
+    jupiter: { degrees: 351.9333, sign: 'pisces' },
+    saturn: { degrees: 298.5167, sign: 'capricorn' },
+    uranus: { degrees: 71.3167, sign: 'gemini' },
+    neptune: { degrees: 277.0667, sign: 'capricorn' },
+    pluto: { degrees: 218.85, sign: 'scorpio' }
+  };
+
+  const normalizedPositions = $derived.by(() => {
+    return Object.keys(planetPositions).length > 0 ? planetPositions : fallbackBodies;
   });
-  
-  // Use provided positions if available, otherwise use defaults
-  const planets = $derived<Record<string, { degrees: number; sign: string; house?: number }>>(
-    Object.keys(planetPositions).length > 0
-      ? planetPositions
-      : defaultPlanets
-  );
-  
-  // Convert degrees to radians
-  function degToRad(deg: number): number {
-    return (deg - 90) * (Math.PI / 180); // -90 to start at top
-  }
-  
-  // Convert degrees to SVG coordinates
-  function polarToCartesian(radius: number, degrees: number): { x: number; y: number } {
-    const rad = degToRad(degrees);
+
+  const angleLongitudes = $derived.by(() => {
+    const source = normalizedPositions as Record<string, unknown>;
     return {
-      x: centerX + radius * Math.cos(rad),
-      y: centerY + radius * Math.sin(rad)
+      asc: normalizeLongitude(source.asc),
+      dsc: normalizeLongitude(source.desc ?? source.dsc),
+      mc: normalizeLongitude(source.mc),
+      ic: normalizeLongitude(source.ic)
+    };
+  });
+
+  const showAxisLines = $derived.by(
+    () =>
+      angleLongitudes.asc != null &&
+      angleLongitudes.dsc != null &&
+      angleLongitudes.mc != null &&
+      angleLongitudes.ic != null
+  );
+
+  const bodies = $derived.by(() =>
+    Object.entries(normalizedPositions)
+      .filter(([id, value]) => !ANGLE_IDS.has(id) && normalizeLongitude(value?.degrees ?? value) != null)
+      .map(([id, value]) => ({
+        id,
+        longitude: normalizeLongitude(value?.degrees ?? value) ?? 0
+      }))
+      .sort((a, b) => a.longitude - b.longitude)
+  );
+
+  function normalizeLongitude(value: unknown): number | null {
+    const n =
+      typeof value === 'number'
+        ? value
+        : value && typeof value === 'object' && 'degrees' in value
+          ? Number((value as { degrees?: unknown }).degrees)
+          : NaN;
+    return Number.isFinite(n) ? ((n % 360) + 360) % 360 : null;
+  }
+
+  function longitudeToScreenRadians(eclipticDeg: number) {
+    return ((180 - eclipticDeg) * Math.PI) / 180;
+  }
+
+  function polar(r: number, eclipticDeg: number) {
+    const rad = longitudeToScreenRadians(eclipticDeg);
+    return {
+      x: center + r * Math.cos(rad),
+      y: center + r * Math.sin(rad)
     };
   }
-  
-  // Create arc path for zodiac sections
-  function createArc(startDeg: number, endDeg: number, innerR: number, outerR: number): string {
-    const startRad = degToRad(startDeg);
-    const endRad = degToRad(endDeg);
-    const startInner = polarToCartesian(innerR, startDeg);
-    const endInner = polarToCartesian(innerR, endDeg);
-    const startOuter = polarToCartesian(outerR, startDeg);
-    const endOuter = polarToCartesian(outerR, endDeg);
-    
-    const largeArc = endDeg - startDeg > 180 ? 1 : 0;
-    
-    return `M ${startInner.x} ${startInner.y} 
-            L ${startOuter.x} ${startOuter.y} 
-            A ${outerR} ${outerR} 0 ${largeArc} 1 ${endOuter.x} ${endOuter.y}
-            L ${endInner.x} ${endInner.y}
-            A ${innerR} ${innerR} 0 ${largeArc} 0 ${startInner.x} ${startInner.y} Z`;
-  }
-  
-  
-  // Get aspect line color
-  function getAspectColor(type: string): string {
-    switch (type) {
-      case 'square':
-      case 'opposition':
-        return '#ef4444'; // red - challenging
-      case 'trine':
-      case 'sextile':
-        return '#22c55e'; // green - harmonious
-      case 'conjunction':
+
+  function elementColorForSign(signId: string): string {
+    switch (ELEMENT_BY_SIGN[signId]) {
+      case 'fire':
+        return 'var(--element-fire)';
+      case 'earth':
+        return 'var(--element-earth)';
+      case 'air':
+        return 'var(--element-air)';
+      case 'water':
+        return 'var(--element-water)';
       default:
-        return '#60a5fa'; // light blue - minor
+        return 'currentColor';
     }
   }
-  
-  // Format planet degree display (precise angle)
-  function formatPreciseAngle(planet: { degrees: number; sign: string }): string {
-    const signDeg = planet.degrees % 30;
-    const totalSeconds = Math.round(signDeg * 3600);
-    const degrees = Math.floor(totalSeconds / 3600) % 30;
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const seconds = totalSeconds % 60;
-    return `${degrees}° ${minutes}' ${seconds}"`;
+
+  function zodiacFilterId(signId: string): string {
+    return `zodiac-tint-${signId}`;
   }
 
-  // SVG element reference
-  let svgElement: SVGElement | undefined;
+  function getAspectColor(type: string): string {
+    return aspectColors[type] ?? '#64748b';
+  }
+
+  function getAspectStrokeWidth(type: string, orb: number | undefined): number {
+    const maxOrb = Math.max(
+      aspectOrbs[type] ?? DEFAULT_ASPECT_ORBS[type as keyof typeof DEFAULT_ASPECT_ORBS] ?? 8,
+      0.0001
+    );
+    const ratioPct = (Math.abs(orb ?? 0) / maxOrb) * 100;
+    if (ratioPct <= aspectLineTierStyle.tightThresholdPct) return aspectLineTierStyle.widthTight;
+    if (ratioPct <= aspectLineTierStyle.mediumThresholdPct) return aspectLineTierStyle.widthMedium;
+    if (ratioPct <= aspectLineTierStyle.looseThresholdPct) return aspectLineTierStyle.widthLoose;
+    return aspectLineTierStyle.widthOuter;
+  }
+
+  function renderGlyph(
+    id: string,
+    x: number,
+    y: number,
+    sizePx: number,
+    color = 'currentColor'
+  ) {
+    return {
+      glyph: getGlyphContent(id),
+      x,
+      y,
+      sizePx,
+      color
+    };
+  }
 </script>
 
 <svg
-  bind:this={svgElement}
   width={size}
   height={size}
-  viewBox={`0 0 ${size} ${size}`}
+  viewBox={`0 0 ${VIEWBOX_SIZE} ${VIEWBOX_SIZE}`}
   class="radix-chart"
   xmlns="http://www.w3.org/2000/svg"
+  preserveAspectRatio="xMidYMid meet"
 >
-  <!-- Part 1: Outer border (narrow) -->
-  <circle
-    cx={centerX}
-    cy={centerY}
-    r={outerBorderRadius}
-    fill="none"
-    stroke="rgba(135, 206, 235, 0.65)"
-    stroke-width={partSize * 0.15}
-  />
-
-  <!-- 5% Houses ring (outermost) -->
-  {#each defaultHouseCusps as cusp, i}
-    {@const nextCusp = defaultHouseCusps[(i + 1) % 12] ?? cusp + 30}
-    {@const startDeg = cusp}
-    {@const endDeg = nextCusp < cusp ? nextCusp + 360 : nextCusp}
-    {@const span = endDeg - startDeg}
-    {@const color = houseColor(i)}
-    {@const sub1 = startDeg}
-    {@const sub2 = startDeg + span / 3}
-    {@const sub3 = startDeg + (span * 2) / 3}
-    {@const sub4 = endDeg}
-    <path d={createArc(sub1, sub2, housesInner, housesOuter)} fill={color} fill-opacity="0.85" stroke="rgba(135, 206, 235, 0.4)" stroke-width="0.25" />
-    <path d={createArc(sub2, sub3, housesInner, housesOuter)} fill={color} fill-opacity="0.85" stroke="rgba(135, 206, 235, 0.4)" stroke-width="0.25" />
-    <path d={createArc(sub3, sub4, housesInner, housesOuter)} fill={color} fill-opacity="0.85" stroke="rgba(135, 206, 235, 0.4)" stroke-width="0.25" />
-  {/each}
-
-  <!-- 40% Dark blue band (main chart area) -->
   <defs>
-    <mask id="darkBlueRingMask">
-      <rect width={size} height={size} fill="white"/>
-      <circle cx={centerX} cy={centerY} r={darkBlueInner} fill="black"/>
-    </mask>
-  </defs>
-  <circle cx={centerX} cy={centerY} r={darkBlueOuter} fill="rgba(30, 58, 95, 0.8)" stroke="none" mask="url(#darkBlueRingMask)" />
-
-  <!-- Second outer circle – divided into 3 parts per house, signed I. II. III. -->
-  {#each defaultHouseCusps as cusp, i}
-    {@const nextCusp = defaultHouseCusps[(i + 1) % 12] ?? cusp + 30}
-    {@const startDeg = cusp}
-    {@const endDeg = nextCusp < cusp ? nextCusp + 360 : nextCusp}
-    {@const span = endDeg - startDeg}
-    {@const signIdx = (Math.floor(((cusp % 360) + 360) % 360 / 30) + 1) % 12}
-    {@const sub1 = startDeg}
-    {@const sub2 = startDeg + span / 3}
-    {@const sub3 = startDeg + (span * 2) / 3}
-    {@const sub4 = endDeg}
-    {@const segmentColor = houseColor(i)}
-    <path d={createArc(sub1, sub2, zodiacStripInner, zodiacStripOuter)} fill={segmentColor} fill-opacity="1" stroke="rgba(135, 206, 235, 0.5)" stroke-width="0.6" />
-    <path d={createArc(sub2, sub3, zodiacStripInner, zodiacStripOuter)} fill={segmentColor} fill-opacity="1" stroke="rgba(135, 206, 235, 0.5)" stroke-width="0.6" />
-    <path d={createArc(sub3, sub4, zodiacStripInner, zodiacStripOuter)} fill={segmentColor} fill-opacity="1" stroke="rgba(135, 206, 235, 0.5)" stroke-width="0.6" />
-    {@const partLabels = ['I.', 'II.', 'III.']}
-    {#each [sub1, sub2, sub3] as subStart, partIndex}
-      {@const subEnd = partIndex === 0 ? sub2 : partIndex === 1 ? sub3 : sub4}
-      {@const partCenterDeg = subStart + (subEnd - subStart) / 2}
-      {@const labelPos = polarToCartesian((zodiacStripInner + zodiacStripOuter) / 2, partCenterDeg)}
-      <text
-        x={labelPos.x}
-        y={labelPos.y}
-        text-anchor="middle"
-        dominant-baseline="middle"
-        font-size={Math.max(8, partSize * 0.55)}
-        fill="currentColor"
-        opacity="0.95"
+    {#each zodiacSigns as sign}
+      <filter
+        id={zodiacFilterId(sign.id)}
+        color-interpolation-filters="sRGB"
+        x="-50%"
+        y="-50%"
+        width="200%"
+        height="200%"
       >
-        {partLabels[partIndex]}
-      </text>
+        <feFlood flood-color={elementColorForSign(sign.id)} flood-opacity="1" result="zodiacColor" />
+        <feComposite in="zodiacColor" in2="SourceGraphic" operator="in" result="zodiacTint" />
+        <feMerge>
+          <feMergeNode in="zodiacTint" />
+        </feMerge>
+      </filter>
     {/each}
-    {@const centerDeg = startDeg + span / 2}
-    {@const signName = signNameFromDegree(cusp)}
-    {@const pos = polarToCartesian(zodiacStripGlyphRadius, centerDeg)}
-    {@const glyphData = getGlyphContent(signName)}
-    <g transform={`translate(${pos.x}, ${pos.y}) rotate(${centerDeg})`}>
-      {#if glyphData.type === 'svg'}
-        {@html glyphData.content}
-      {:else if glyphData.type === 'file'}
-        {#if failedGlyphFiles[`zstrip:${signName}:${glyphData.content}`]}
-          <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size={zodiacStripGlyphSize} fill="currentColor" opacity="0.9">
-            {glyphData.fallback || signName.slice(0, 2).toUpperCase()}
-          </text>
-        {:else}
-          <image
-            href={glyphData.content}
-            x={-zodiacStripGlyphSize / 2}
-            y={-zodiacStripGlyphSize / 2}
-            width={zodiacStripGlyphSize}
-            height={zodiacStripGlyphSize}
-            opacity="0.95"
-            onerror={() => {
-              failedGlyphFiles[`zstrip:${signName}:${glyphData.content}`] = true;
-              failedGlyphFiles = { ...failedGlyphFiles };
-            }}
-          />
-        {/if}
-      {:else}
-        <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size={zodiacStripGlyphSize} fill="currentColor" opacity="0.9">
-          {glyphData.content || signName.charAt(0).toUpperCase()}
-        </text>
-      {/if}
-    </g>
-  {/each}
+  </defs>
 
-  <!-- House cusp lines (from center to outer) -->
-  {#each defaultHouseCusps as cusp}
-    {@const outerPos = polarToCartesian(outerBorderRadius, cusp)}
-    {@const innerPos = polarToCartesian(centerDarkOuter, cusp)}
+  <circle cx={center} cy={center} r={outerRadius + 60} fill="rgba(255,255,255,0.02)" />
+
+  <circle cx={center} cy={center} r={outerRadius} fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" />
+  <circle cx={center} cy={center} r={innerRadius} fill="none" stroke="currentColor" stroke-opacity="0.6" stroke-width="1.5" />
+
+  {#each zodiacSigns as sign}
+    {@const p1 = polar(innerRadius, sign.angle)}
+    {@const p2 = polar(outerRadius, sign.angle)}
     <line
-      x1={innerPos.x}
-      y1={innerPos.y}
-      x2={outerPos.x}
-      y2={outerPos.y}
-      stroke="rgba(135, 206, 235, 0.5)"
-      stroke-width="0.5"
+      x1={p1.x}
+      y1={p1.y}
+      x2={p2.x}
+      y2={p2.y}
+      stroke="currentColor"
+      stroke-opacity="0.45"
+      stroke-width="1.5"
     />
   {/each}
-  
-  <!-- Planets with all information (positions 3-6) -->
-  {#each Object.entries(planets) as [planetName, planetData]}
-    <!-- Position 3: Glyph of object (planet) -->
-    {@const planetPos = polarToCartesian(planetGlyphRadius, planetData.degrees)}
-    {@const planetGlyphData = getGlyphContent(planetName)}
-    <g transform={`translate(${planetPos.x}, ${planetPos.y})`}>
-      {#if planetGlyphData.type === 'svg'}
-        <g class="planet-glyph" data-planet={planetName}>
-          {@html planetGlyphData.content}
-        </g>
-      {:else if planetGlyphData.type === 'file'}
-        {#if failedGlyphFiles[`planet:${planetName}:${planetGlyphData.content}`]}
+
+  {#each Array.from({ length: 360 }, (_, i) => i) as tick}
+    {@const is10 = tick % 10 === 0}
+    {@const is5 = tick % 5 === 0}
+    {@const tickLength = is10 ? 20 : is5 ? 12 : 8}
+    {@const tickWidth = is10 ? 1.5 : is5 ? 1.2 : 0.5}
+    {@const p1 = polar(innerRadius, tick)}
+    {@const p2 = polar(innerRadius + tickLength, tick)}
+    <line
+      x1={p1.x}
+      y1={p1.y}
+      x2={p2.x}
+      y2={p2.y}
+      stroke="currentColor"
+      stroke-opacity="0.35"
+      stroke-width={tickWidth}
+    />
+  {/each}
+
+  {#each zodiacSigns as sign}
+    {@const pos = polar(zodiacRadius, sign.angle + 15)}
+      {@const rendered = renderGlyph(sign.id, pos.x, pos.y, 24, elementColorForSign(sign.id))}
+    <g transform={`translate(${rendered.x}, ${rendered.y})`} style={`color:${rendered.color}`}>
+      {#if rendered.glyph.type === 'file'}
+        {#if failedGlyphFiles[`zodiac:${sign.id}:${rendered.glyph.content}`]}
           <text
             x="0"
             y="0"
             text-anchor="middle"
             dominant-baseline="middle"
-            font-size={partSize * 0.7}
-            fill="currentColor"
-            class="planet-glyph"
-            data-planet={planetName}
+            font-size="20"
+            fill={rendered.color}
           >
-            {planetGlyphData.fallback || planetName.slice(0, 2).toUpperCase()}
+            {sign.icon}
           </text>
         {:else}
           <image
-            href={planetGlyphData.content}
-            x={-planetGlyphData.size / 2}
-            y={-planetGlyphData.size / 2}
-            width={planetGlyphData.size}
-            height={planetGlyphData.size}
-            class="planet-glyph"
-            data-planet={planetName}
+            href={rendered.glyph.content}
+            x={-rendered.sizePx / 2}
+            y={-rendered.sizePx / 2}
+            width={rendered.sizePx}
+            height={rendered.sizePx}
+            opacity="0.95"
+            style={`filter:url(#${zodiacFilterId(sign.id)})`}
             onerror={() => {
-              failedGlyphFiles[`planet:${planetName}:${planetGlyphData.content}`] = true;
+              failedGlyphFiles[`zodiac:${sign.id}:${rendered.glyph.content}`] = true;
               failedGlyphFiles = { ...failedGlyphFiles };
             }}
           />
         {/if}
+      {:else if rendered.glyph.type === 'svg'}
+        <g opacity="0.95">
+          {@html rendered.glyph.content}
+        </g>
       {:else}
         <text
           x="0"
           y="0"
           text-anchor="middle"
           dominant-baseline="middle"
-          font-size={partSize * 1.2}
-          fill="currentColor"
-          class="planet-glyph"
-          data-planet={planetName}
+          font-size="20"
+          fill={rendered.color}
         >
-          {planetGlyphData.content || planetName.charAt(0).toUpperCase()}
+          {sign.icon}
         </text>
       {/if}
     </g>
-    
-    <!-- Degree/minute label (single line per planet) -->
-    {@const anglePos = polarToCartesian(angleTextRadius, planetData.degrees)}
-    <text
-      x={anglePos.x}
-      y={anglePos.y}
-      text-anchor="middle"
-      dominant-baseline="middle"
-      font-size={Math.max(11, partSize * 1.35)}
-      fill="currentColor"
-      opacity="0.8"
-    >
-      {formatPreciseAngle(planetData)}
-    </text>
   {/each}
-  
-  <!-- Rest: Inner circle (54% → 0) – single color -->
-  <circle
-    cx={centerX}
-    cy={centerY}
-    r={innerCircleRadius}
-    fill="rgba(80, 80, 95, 0.55)"
-    stroke="rgba(135, 206, 235, 0.45)"
-    stroke-width="1"
-  />
 
-  <!-- Dark center (aspects) -->
-  <circle
-    cx={centerX}
-    cy={centerY}
-    r={centerDarkOuter}
-    fill="rgba(0, 0, 0, 0.45)"
-    stroke="rgba(135, 206, 235, 0.55)"
-    stroke-width="1"
-    opacity="0.6"
-  />
-  
-  <!-- Aspect/Transit lines (inside dark center) -->
-  {#each aspects as aspect}
-    {@const fromPlanet = planets[aspect.from]}
-    {@const toPlanet = planets[aspect.to]}
-    {#if fromPlanet && toPlanet}
-      {@const fromPos = polarToCartesian(aspectRadius, fromPlanet.degrees)}
-      {@const toPos = polarToCartesian(aspectRadius, toPlanet.degrees)}
-      <line
-        x1={fromPos.x}
-        y1={fromPos.y}
-        x2={toPos.x}
-        y2={toPos.y}
-        stroke={getAspectColor(aspect.type)}
-        stroke-width={partSize * 0.1}
-        opacity="0.8"
-      />
-    {/if}
-  {/each}
-  
-  <!-- Center point -->
-  <circle
-    cx={centerX}
-    cy={centerY}
-    r={partSize * 0.2}
-    fill="currentColor"
-    opacity="0.6"
-  />
+  <circle cx={center} cy={center} r={innerCenterRing} fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+  <circle cx={center} cy={center} r={innerCenterCore} fill="none" stroke="currentColor" stroke-opacity="0.45" stroke-width="1.5" />
+
+  {#if showAxisLines}
+    {@const pAsc = polar(outerRadius + 4, angleLongitudes.asc!)}
+    {@const pDsc = polar(outerRadius + 4, angleLongitudes.dsc!)}
+    {@const pMc = polar(outerRadius + 4, angleLongitudes.mc!)}
+    {@const pIc = polar(outerRadius + 4, angleLongitudes.ic!)}
+    <g stroke="rgba(59,130,246,0.78)">
+      <line x1={pAsc.x} y1={pAsc.y} x2={pDsc.x} y2={pDsc.y} stroke-width="1.25" stroke-dasharray="4 3" />
+      <line x1={pMc.x} y1={pMc.y} x2={pIc.x} y2={pIc.y} stroke-width="1.25" stroke-dasharray="2 2" opacity="0.85" />
+    </g>
+
+    {#each [
+      { id: 'asc', longitude: angleLongitudes.asc! },
+      { id: 'desc', longitude: angleLongitudes.dsc! },
+      { id: 'mc', longitude: angleLongitudes.mc! },
+      { id: 'ic', longitude: angleLongitudes.ic! }
+    ] as angle}
+      {@const pos = polar(angleMarkerRadius, angle.longitude)}
+      {@const rendered = renderGlyph(angle.id, pos.x, pos.y, 22)}
+      <g transform={`translate(${rendered.x}, ${rendered.y})`}>
+        {#if rendered.glyph.type === 'file'}
+          {#if failedGlyphFiles[`angle:${angle.id}:${rendered.glyph.content}`]}
+            <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="currentColor">
+              {rendered.glyph.fallback}
+            </text>
+          {:else}
+            <image
+              href={rendered.glyph.content}
+              x={-rendered.sizePx / 2}
+              y={-rendered.sizePx / 2}
+              width={rendered.sizePx}
+              height={rendered.sizePx}
+              onerror={() => {
+                failedGlyphFiles[`angle:${angle.id}:${rendered.glyph.content}`] = true;
+                failedGlyphFiles = { ...failedGlyphFiles };
+              }}
+            />
+          {/if}
+        {:else if rendered.glyph.type === 'svg'}
+          {@html rendered.glyph.content}
+        {:else}
+          <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="11" font-weight="700" fill="currentColor">
+            {rendered.glyph.content}
+          </text>
+        {/if}
+      </g>
+    {/each}
+  {/if}
+
+  <g opacity={aspects.length > 0 ? 0.55 : 0} style="pointer-events:none">
+    {#each aspects as aspect, index}
+      {@const fromBody = bodies.find((body) => body.id === aspect.from)}
+      {@const toBody = bodies.find((body) => body.id === aspect.to)}
+      {#if fromBody && toBody}
+        {@const p1 = polar(radixAspectChordRadius, fromBody.longitude)}
+        {@const p2 = polar(radixAspectChordRadius, toBody.longitude)}
+        <line
+          x1={p1.x}
+          y1={p1.y}
+          x2={p2.x}
+          y2={p2.y}
+          stroke={getAspectColor(aspect.type)}
+          stroke-width={getAspectStrokeWidth(aspect.type, aspect.orb)}
+          stroke-linecap="round"
+        />
+      {/if}
+    {/each}
+  </g>
+
+  <g>
+    {#each bodies as body}
+      {@const pos = polar(planetRadius, body.longitude)}
+      {@const rendered = renderGlyph(body.id, pos.x, pos.y, 24)}
+      <g transform={`translate(${rendered.x}, ${rendered.y})`}>
+        {#if rendered.glyph.type === 'file'}
+          {#if failedGlyphFiles[`planet:${body.id}:${rendered.glyph.content}`]}
+            <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" fill="currentColor">
+              {rendered.glyph.fallback}
+            </text>
+          {:else}
+            <image
+              href={rendered.glyph.content}
+              x={-rendered.sizePx / 2}
+              y={-rendered.sizePx / 2}
+              width={rendered.sizePx}
+              height={rendered.sizePx}
+              onerror={() => {
+                failedGlyphFiles[`planet:${body.id}:${rendered.glyph.content}`] = true;
+                failedGlyphFiles = { ...failedGlyphFiles };
+              }}
+            />
+          {/if}
+        {:else if rendered.glyph.type === 'svg'}
+          {@html rendered.glyph.content}
+        {:else}
+          <text x="0" y="0" text-anchor="middle" dominant-baseline="middle" font-size="18" font-weight="600" fill="currentColor">
+            {rendered.glyph.content}
+          </text>
+        {/if}
+      </g>
+    {/each}
+  </g>
 </svg>
 
 <style>
   .radix-chart {
     max-width: 100%;
     max-height: 100%;
-  }
-  
-  .planet-glyph {
-    cursor: pointer;
-    transition: opacity 0.2s;
-  }
-  
-  .planet-glyph:hover {
-    opacity: 0.7;
+    display: block;
   }
 </style>

@@ -1,7 +1,7 @@
 // Time Navigation Store - Svelte 5 runes-based
 // This file must be Svelte-compiled (.svelte.ts) to use runes
 
-export type TimeStepUnit = 'seconds' | 'minutes' | 'hours' | 'days';
+export type TimeStepUnit = 'seconds' | 'minutes' | 'hours' | 'days' | 'months' | 'years';
 
 export interface TimeStep {
   unit: TimeStepUnit;
@@ -65,16 +65,22 @@ function addTimeStep(date: Date, step: TimeStep): Date {
   const result = new Date(date);
   switch (step.unit) {
     case 'seconds':
-      result.setSeconds(result.getSeconds() + step.value);
+      result.setUTCSeconds(result.getUTCSeconds() + step.value);
       break;
     case 'minutes':
-      result.setMinutes(result.getMinutes() + step.value);
+      result.setUTCMinutes(result.getUTCMinutes() + step.value);
       break;
     case 'hours':
-      result.setHours(result.getHours() + step.value);
+      result.setUTCHours(result.getUTCHours() + step.value);
       break;
     case 'days':
-      result.setDate(result.getDate() + step.value);
+      result.setUTCDate(result.getUTCDate() + step.value);
+      break;
+    case 'months':
+      result.setUTCMonth(result.getUTCMonth() + step.value);
+      break;
+    case 'years':
+      result.setUTCFullYear(result.getUTCFullYear() + step.value);
       break;
   }
   return result;
@@ -85,16 +91,22 @@ function subtractTimeStep(date: Date, step: TimeStep): Date {
   const result = new Date(date);
   switch (step.unit) {
     case 'seconds':
-      result.setSeconds(result.getSeconds() - step.value);
+      result.setUTCSeconds(result.getUTCSeconds() - step.value);
       break;
     case 'minutes':
-      result.setMinutes(result.getMinutes() - step.value);
+      result.setUTCMinutes(result.getUTCMinutes() - step.value);
       break;
     case 'hours':
-      result.setHours(result.getHours() - step.value);
+      result.setUTCHours(result.getUTCHours() - step.value);
       break;
     case 'days':
-      result.setDate(result.getDate() - step.value);
+      result.setUTCDate(result.getUTCDate() - step.value);
+      break;
+    case 'months':
+      result.setUTCMonth(result.getUTCMonth() - step.value);
+      break;
+    case 'years':
+      result.setUTCFullYear(result.getUTCFullYear() - step.value);
       break;
   }
   return result;
@@ -157,12 +169,12 @@ export function effectiveTime(): Date {
   }
   
   const result = new Date(timeNavigation.currentTime);
-  result.setFullYear(result.getFullYear() + timeNavigation.shift.years);
-  result.setMonth(result.getMonth() + timeNavigation.shift.months);
-  result.setDate(result.getDate() + timeNavigation.shift.days);
-  result.setHours(result.getHours() + timeNavigation.shift.hours);
-  result.setMinutes(result.getMinutes() + timeNavigation.shift.minutes);
-  result.setSeconds(result.getSeconds() + timeNavigation.shift.seconds);
+  result.setUTCFullYear(result.getUTCFullYear() + timeNavigation.shift.years);
+  result.setUTCMonth(result.getUTCMonth() + timeNavigation.shift.months);
+  result.setUTCDate(result.getUTCDate() + timeNavigation.shift.days);
+  result.setUTCHours(result.getUTCHours() + timeNavigation.shift.hours);
+  result.setUTCMinutes(result.getUTCMinutes() + timeNavigation.shift.minutes);
+  result.setUTCSeconds(result.getUTCSeconds() + timeNavigation.shift.seconds);
   
   return result;
 }

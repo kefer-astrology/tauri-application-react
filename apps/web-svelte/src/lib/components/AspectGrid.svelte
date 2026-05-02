@@ -14,12 +14,14 @@
       orb: number;
       applying?: boolean;
     }>;
+    aspectColors?: Record<string, string>;
   }
   
   let { 
     size = 800,
     planetPositions = {},
-    aspects = []
+    aspects = [],
+    aspectColors = {}
   }: Props = $props();
   
   // Default planet positions if not provided (sign = glyph id for settings-controlled display)
@@ -74,19 +76,20 @@
   
   // Get aspect symbol and color
   function getAspectSymbol(type: string): { symbol: string; color: string; bgColor: string } {
+    const configuredColor = aspectColors[type];
     switch (type) {
       case 'conjunction':
-        return { symbol: '☌', color: '#60a5fa', bgColor: 'bg-blue-500/10' };
+        return { symbol: '☌', color: configuredColor || '#60a5fa', bgColor: 'bg-blue-500/10' };
       case 'sextile':
-        return { symbol: '*', color: '#22c55e', bgColor: 'bg-green-500/10' };
+        return { symbol: '*', color: configuredColor || '#22c55e', bgColor: 'bg-green-500/10' };
       case 'square':
-        return { symbol: '□', color: '#ef4444', bgColor: 'bg-red-500/10' };
+        return { symbol: '□', color: configuredColor || '#ef4444', bgColor: 'bg-red-500/10' };
       case 'trine':
-        return { symbol: '△', color: '#22c55e', bgColor: 'bg-green-500/10' };
+        return { symbol: '△', color: configuredColor || '#22c55e', bgColor: 'bg-green-500/10' };
       case 'quincunx':
-        return { symbol: '∠', color: '#f59e0b', bgColor: 'bg-amber-500/10' };
+        return { symbol: '∠', color: configuredColor || '#f59e0b', bgColor: 'bg-amber-500/10' };
       case 'opposition':
-        return { symbol: '☍', color: '#ef4444', bgColor: 'bg-red-500/10' };
+        return { symbol: '☍', color: configuredColor || '#ef4444', bgColor: 'bg-red-500/10' };
       default:
         return { symbol: '', color: '#888', bgColor: '' };
     }

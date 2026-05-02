@@ -12,7 +12,7 @@
   import { invoke } from '@tauri-apps/api/core';
   import { reapplyCurrentPreset } from '$lib/state/theme.svelte';
   import { timeNavigation } from '$lib/stores/timeNavigation.svelte';
-  import { t, i18n, setLang } from '$lib/i18n/index.svelte';
+  import { t } from '$lib/i18n/index.svelte';
   import * as Accordion from '$lib/components/ui/accordion/index.js';
   import * as Select from '$lib/components/ui/select/index.js';
   import { Button } from '$lib/components/ui/button/index.js';
@@ -28,7 +28,6 @@
   import { stepForward, stepBackward } from '$lib/stores/timeNavigation.svelte';
 
   let rightExpanded = $state(true);
-  let rightBottomExpanded = $state(true);
   // Left column has three panels with independent states
   let leftTopExpanded = $state(true);
   let leftMiddleExpanded = $state(true);
@@ -85,8 +84,7 @@
       name: 'Current Sky',
       chartType: 'EVENT',
       dateTime,
-      // Keep location text numeric so Rust/Python parsers stay deterministic.
-      location: `${defaultLocationName} (${defaultLat.toFixed(4)}, ${defaultLon.toFixed(4)})`,
+      location: defaultLocationName,
       latitude: defaultLat,
       longitude: defaultLon,
       timezone: defaultTimezone,
@@ -141,15 +139,6 @@
   let selectedDynamicSection = $state<string | undefined>(undefined);
   let selectedRevolutionSection = $state<string | undefined>(undefined);
   
-  // Language and preset state for settings
-  const languages = $derived(
-    Object.keys(i18n.dicts).map((code) => ({
-      value: code,
-      label:
-        ({ en: 'English', cs: 'Čeština', es: 'Español', fr: 'Français' } as Record<string, string>)[code] ?? code.toUpperCase()
-    }))
-  );
-
   $effect(() => {
     if (!transitSourceChartId && layout.contexts.length > 0) {
       transitSourceChartId = layout.contexts[0].id;
@@ -171,18 +160,6 @@
         return 3600;
     }
   }
-  let langValue = $state(String(i18n.lang));
-  const langTriggerContent = $derived(
-    languages.find((l) => l.value === langValue)?.label ?? t('select_language', {}, 'Select language')
-  );
-  
-  // Sync language changes
-  $effect(() => {
-    if (langValue !== i18n.lang) {
-      setLang(langValue as any);
-    }
-  });
-
   // Info items structure (all labels translatable)
   const infoItems = $derived([
     {
@@ -443,6 +420,36 @@
     };
   });
 
+  const chartDateLabel = $derived.by(() => {
+    const parsed = selectedChart?.dateTime ? parseChartDateTimeValue(selectedChart.dateTime) : null;
+    return parsed
+      ? parsed.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+      : (chartDetails.date || '—');
+  });
+
+  const chartTimeLabel = $derived.by(() => {
+    const parsed = selectedChart?.dateTime ? parseChartDateTimeValue(selectedChart.dateTime) : null;
+    return parsed
+      ? parsed.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+      : (chartDetails.time || '—');
+  });
+
+  const chartLocationLabel = $derived.by(() => chartDetails.location || layout.workspaceDefaults.locationName || '—');
+  const chartCoordsLabel = $derived.by(() => {
+    const lat = chartDetails.latitude;
+    const lon = chartDetails.longitude;
+    if (lat && lon) return `${lat}, ${lon}`;
+    return '—';
+  });
+  const chartMetaLabel = $derived.by(() =>
+    [chartDetails.zodiacType, chartDetails.houseSystem, chartDetails.engine !== '—' ? chartDetails.engine : '']
+      .filter(Boolean)
+      .join(' / ')
+  );
+  const chartTagsList = $derived.by(() =>
+    (chartDetails.tags || '').split(',').map((tag: string) => tag.trim()).filter(Boolean)
+  );
+
   function parseDateTime(dateTime: string) {
     const trimmed = dateTime?.trim();
     if (!trimmed) {
@@ -521,12 +528,22 @@
         // Accept the same canonical chart timestamp contract as React/Rust.
         const chartDate = parseChartDateTimeValue(chart.dateTime);
         if (chartDate && !isNaN(chartDate.getTime())) {
+          const chartTimeMs = chartDate.getTime();
+          const currentTimeMs = timeNavigation.currentTime?.getTime?.() ?? NaN;
           // Set the current time to the chart's event time
-          timeNavigation.currentTime = chartDate;
+          if (currentTimeMs !== chartTimeMs) {
+            timeNavigation.currentTime = chartDate;
+          }
           // Set time range around the chart time (default: 1 day before/after)
           const oneDay = 24 * 60 * 60 * 1000;
-          timeNavigation.startTime = new Date(chartDate.getTime() - oneDay);
-          timeNavigation.endTime = new Date(chartDate.getTime() + oneDay);
+          const nextStart = chartTimeMs - oneDay;
+          const nextEnd = chartTimeMs + oneDay;
+          if ((timeNavigation.startTime?.getTime?.() ?? NaN) !== nextStart) {
+            timeNavigation.startTime = new Date(nextStart);
+          }
+          if ((timeNavigation.endTime?.getTime?.() ?? NaN) !== nextEnd) {
+            timeNavigation.endTime = new Date(nextEnd);
+          }
         }
       } catch (err) {
         console.error('Failed to parse chart date:', err);
@@ -1011,60 +1028,41 @@
               }}
             >
               {#snippet children()}
-                <!-- Complete compact: name, type+date+time+place, zodiac+house+engine+tz, tags -->
-                <div class="space-y-1.5 text-xs">
-                  <!-- Row 0: Chart name (when different from header or for completeness) -->
-                  {#if selectedChart?.name}
-                    <div class="font-medium opacity-95 truncate" title={selectedChart.name}>
-                      {selectedChart.name}
-                    </div>
-                  {/if}
-                  <!-- Row 1: Type · Date · Time · Place (always show all) -->
-                  <div class="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 opacity-90">
-                    <span class="font-semibold">
+                <div class="space-y-3">
+                  <div class="space-y-1">
+                    <div class="text-sm font-semibold opacity-95">
                       {chartDetails.chartType === 'NATAL' ? t('new_type_radix', {}, 'Radix')
                         : chartDetails.chartType === 'EVENT' ? t('new_type_event', {}, 'Event')
                         : chartDetails.chartType === 'HORARY' ? t('new_type_horary', {}, 'Horary')
                         : t('new_type_composite', {}, 'Composite')}
-                    </span>
-                    <span class="opacity-60">·</span>
-                    <span class="font-mono">{chartDetails.date || '—'}</span>
-                    <span class="opacity-60">·</span>
-                    <span class="font-mono">{chartDetails.time || '—'}</span>
-                    <span class="opacity-60">·</span>
-                    <span class="truncate min-w-0" title={chartDetails.location || ''}>
-                      {chartDetails.location || (chartDetails.latitude && chartDetails.longitude ? `(${chartDetails.latitude}, ${chartDetails.longitude})` : '—')}
-                    </span>
-                  </div>
-                  <!-- Row 2: Zodiac · House · Engine · Timezone -->
-                  <div class="flex flex-wrap items-baseline gap-x-2 opacity-75">
-                    <span>{chartDetails.zodiacType || '—'}</span>
-                    <span class="opacity-60">·</span>
-                    <span>{chartDetails.houseSystem || '—'}</span>
-                    {#if chartDetails.engine && chartDetails.engine !== '—'}
-                      <span class="opacity-60">·</span>
-                      <span>{chartDetails.engine}</span>
-                    {/if}
-                    {#if chartDetails.timezone}
-                      <span class="opacity-60">·</span>
-                      <span>{chartDetails.timezone}</span>
-                    {/if}
-                  </div>
-                  <!-- Row 3: Tags as small labels (always show row; pills or "—") -->
-                  {#if true}
-                    {@const tagList = (chartDetails.tags || '').split(',').map((t: string) => t.trim()).filter(Boolean)}
-                    <div class="flex flex-wrap gap-1 pt-0.5">
-                      {#if tagList.length > 0}
-                        {#each tagList as tag}
-                          <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-muted/70 text-[10px] opacity-85">
-                            {tag}
-                          </span>
-                        {/each}
-                      {:else}
-                        <span class="text-[10px] opacity-50">—</span>
-                      {/if}
                     </div>
-                  {/if}
+                    <div class="text-xs opacity-70">{chartMetaLabel || '—'}</div>
+                  </div>
+                  <div class="space-y-2">
+                    <div class="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                      <div class="truncate">{chartDateLabel}</div>
+                    </div>
+                    <div class="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                      <div class="truncate">{chartTimeLabel}</div>
+                    </div>
+                    <div class="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
+                      <div class="truncate" title={chartLocationLabel}>{chartLocationLabel}</div>
+                    </div>
+                    <div class="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-xs opacity-75">
+                      <div class="truncate">{chartCoordsLabel}</div>
+                    </div>
+                  </div>
+                  <div class="flex flex-wrap gap-1.5">
+                    {#if chartTagsList.length > 0}
+                      {#each chartTagsList as tag}
+                        <span class="inline-flex items-center rounded-md border border-border/50 px-2 py-1 text-[11px] opacity-85">
+                          {tag}
+                        </span>
+                      {/each}
+                    {:else}
+                      <span class="text-[11px] opacity-50">—</span>
+                    {/if}
+                  </div>
                 </div>
               {/snippet}
             </ExpandablePanel>
@@ -1073,7 +1071,11 @@
           <div class="min-h-0" class:flex-1={leftMiddleExpanded}>
             <ExpandablePanel title={t('astrolabe', {}, 'Astrolab')} bind:expanded={leftMiddleExpanded}>
               {#snippet children()}
-                <TimeNavigationPanel />
+                <TimeNavigationPanel
+                  dateLabel={chartDateLabel}
+                  timeLabel={chartTimeLabel}
+                  locationLabel={chartLocationLabel}
+                />
               {/snippet}
             </ExpandablePanel>
           </div>
@@ -1342,39 +1344,6 @@
               {/snippet}
             </ExpandablePanel>
           </div>
-          <!-- Right bottom: expandable tiny positions summary (like table view, compact) -->
-          {#if isRadixLikeMode}
-            <div class="flex-shrink-0 min-h-0 min-w-0">
-              <ExpandablePanel title={t('positions_summary', {}, 'Positions summary')} bind:expanded={rightBottomExpanded} editable={false}>
-                {#snippet children()}
-                  {#if planetRows.length > 0}
-                    <div class="p-1 overflow-x-auto">
-                      <table class="w-full text-[10px] border-collapse min-w-max">
-                        <thead>
-                          <tr class="border-b border-border/30">
-                            {#each planetRows.slice(0, 10) as [planetName]}
-                              <th class="px-1 py-0.5 text-left font-normal opacity-85 capitalize truncate max-w-[3rem]">{planetName.replaceAll('_', ' ')}</th>
-                            {/each}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          <tr>
-                            {#each planetRows.slice(0, 10) as [planetName, planetData]}
-                              <td class="px-1 py-0.5 font-mono opacity-90">
-                                {formatSignArc(planetData.positionInHouse)}{planetData.retrograde ? ' R' : ''}
-                              </td>
-                            {/each}
-                          </tr>
-                        </tbody>
-                      </table>
-                    </div>
-                  {:else}
-                    <p class="text-[10px] opacity-60 px-1 py-1.5">No computed positions yet.</p>
-                  {/if}
-                {/snippet}
-              </ExpandablePanel>
-            </div>
-          {/if}
         </div>
       {/if}
     </section>

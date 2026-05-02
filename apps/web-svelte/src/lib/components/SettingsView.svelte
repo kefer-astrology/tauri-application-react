@@ -25,6 +25,12 @@
     setAppShellIconSet,
     type AppShellIconSetId
   } from '$lib/stores/app-shell-icons.svelte';
+  import {
+    ASPECT_ROWS,
+    DEFAULT_ASPECT_COLORS,
+    DEFAULT_ASPECT_ORBS,
+    type AspectLineTierStyleState
+  } from '$lib/astrology/aspects';
   import BodySelector from '$lib/components/BodySelector.svelte';
   import { layout, chartDataToComputePayload, updateChartComputationAtTime, setWorkspaceDefaults } from '$lib/state/layout';
   import { DEFAULT_OBSERVABLE_OBJECT_IDS } from '$lib/astrology/observableObjects';
@@ -37,12 +43,28 @@
   } = $props();
 
   let settingsChanged = $state(false);
+  const HOUSE_SYSTEMS = [
+    'Placidus',
+    'Whole Sign',
+    'Campanus',
+    'Koch',
+    'Equal',
+    'Regiomontanus',
+    'Vehlow',
+    'Porphyry',
+    'Alcabitius'
+  ] as const;
   let elementColors = $state<Record<ElementColorKey, string>>({
     'element-fire': '#5a5a64',
     'element-earth': '#4a3f35',
     'element-air': '#1e3d38',
     'element-water': '#5c2a2a',
   });
+  let defaultLocation = $state(layout.workspaceDefaults.locationName);
+  let latitude = $state(String(layout.workspaceDefaults.locationLatitude));
+  let longitude = $state(String(layout.workspaceDefaults.locationLongitude));
+  let timezone = $state(layout.workspaceDefaults.timezone);
+  let houseSystem = $state(layout.workspaceDefaults.houseSystem);
 
   const languages = $derived(
     Object.keys(i18n.dicts).map((code) => ({
@@ -52,9 +74,9 @@
     }))
   );
 
-  let langValue = $state(String(i18n.lang));
+  const currentLangValue = $derived(String(i18n.lang));
   const langTriggerContent = $derived(
-    languages.find((l) => l.value === langValue)?.label ?? t('select_language', {}, 'Select language')
+    languages.find((l) => l.value === currentLangValue)?.label ?? t('select_language', {}, 'Select language')
   );
 
   const presetItems = presets.map((p) => ({ value: p.id, label: p.name }));
@@ -72,13 +94,6 @@
   const appShellIconSetTriggerContent = $derived(
     appShellIconSetOptions.find((s) => s.id === appShellIconSetValue)?.label ?? 'Select app shell icon set'
   );
-
-  $effect(() => {
-    if (langValue !== i18n.lang) {
-      setLang(langValue as any);
-      settingsChanged = true;
-    }
-  });
 
   $effect(() => {
     if (presetValue !== String(preset.id)) {
@@ -122,31 +137,99 @@
   let selectedBodies = $state<string[]>(layout.workspaceDefaults.defaultBodies.length > 0
     ? [...layout.workspaceDefaults.defaultBodies]
     : [...DEFAULT_OBSERVABLE_OBJECT_IDS]);
+  let aspects = $state<Record<string, { enabled: boolean; orb: number; color: string }>>(
+    Object.fromEntries(
+      ASPECT_ROWS.map((aspect) => [
+        aspect.id,
+        {
+          enabled: layout.workspaceDefaults.defaultAspects.includes(aspect.id),
+          orb: layout.workspaceDefaults.defaultAspectOrbs[aspect.id] ?? aspect.defaultOrb,
+          color: layout.workspaceDefaults.defaultAspectColors[aspect.id] ?? DEFAULT_ASPECT_COLORS[aspect.id]
+        }
+      ])
+    )
+  );
+  let aspectLineTiers = $state<AspectLineTierStyleState>({
+    ...layout.workspaceDefaults.aspectLineTierStyle
+  });
+  const aspectTierFields: Array<{
+    key: keyof AspectLineTierStyleState;
+    labelKey: string;
+    min: number;
+    step: number;
+  }> = [
+    { key: 'tightThresholdPct', labelKey: 'settings_aspect_line_tight_pct', min: 0, step: 0.1 },
+    { key: 'mediumThresholdPct', labelKey: 'settings_aspect_line_medium_pct', min: 0, step: 0.1 },
+    { key: 'looseThresholdPct', labelKey: 'settings_aspect_line_loose_pct', min: 0, step: 0.1 },
+    { key: 'widthTight', labelKey: 'settings_aspect_line_width_tight', min: 0.25, step: 0.25 },
+    { key: 'widthMedium', labelKey: 'settings_aspect_line_width_medium', min: 0.25, step: 0.25 },
+    { key: 'widthLoose', labelKey: 'settings_aspect_line_width_loose', min: 0.25, step: 0.25 },
+    { key: 'widthOuter', labelKey: 'settings_aspect_line_width_outer', min: 0.25, step: 0.25 }
+  ];
 
   $effect(() => {
+    defaultLocation = layout.workspaceDefaults.locationName;
+    latitude = String(layout.workspaceDefaults.locationLatitude);
+    longitude = String(layout.workspaceDefaults.locationLongitude);
+    timezone = layout.workspaceDefaults.timezone;
+    houseSystem = layout.workspaceDefaults.houseSystem;
     selectedBodies = layout.workspaceDefaults.defaultBodies.length > 0
       ? [...layout.workspaceDefaults.defaultBodies]
       : [...DEFAULT_OBSERVABLE_OBJECT_IDS];
+    aspects = Object.fromEntries(
+      ASPECT_ROWS.map((aspect) => [
+        aspect.id,
+        {
+          enabled: layout.workspaceDefaults.defaultAspects.includes(aspect.id),
+          orb: layout.workspaceDefaults.defaultAspectOrbs[aspect.id] ?? aspect.defaultOrb,
+          color: layout.workspaceDefaults.defaultAspectColors[aspect.id] ?? DEFAULT_ASPECT_COLORS[aspect.id]
+        }
+      ])
+    );
+    aspectLineTiers = { ...layout.workspaceDefaults.aspectLineTierStyle };
   });
 
-  async function applyObservableObjects(nextBodies: string[]) {
-    selectedBodies = [...nextBodies];
-    setWorkspaceDefaults({ defaultBodies: nextBodies });
-    settingsChanged = true;
-
+  async function persistWorkspaceDefaultsPatch(
+    patch: Partial<typeof layout.workspaceDefaults>,
+    options?: { recomputeCharts?: boolean }
+  ) {
+    setWorkspaceDefaults(patch);
     if (layout.workspacePath) {
       try {
         await invoke('save_workspace_defaults', {
           workspacePath: layout.workspacePath,
           defaults: {
-            default_bodies: nextBodies,
+            default_house_system: layout.workspaceDefaults.houseSystem,
+            default_timezone: layout.workspaceDefaults.timezone,
+            default_location_name: layout.workspaceDefaults.locationName,
+            default_location_latitude: layout.workspaceDefaults.locationLatitude,
+            default_location_longitude: layout.workspaceDefaults.locationLongitude,
+            default_engine: layout.workspaceDefaults.engine,
+            default_bodies: layout.workspaceDefaults.defaultBodies,
+            default_aspects: layout.workspaceDefaults.defaultAspects,
+            default_aspect_orbs: layout.workspaceDefaults.defaultAspectOrbs,
+            default_aspect_colors: layout.workspaceDefaults.defaultAspectColors,
+            aspect_line_tier_style: {
+              tight_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.tightThresholdPct,
+              medium_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.mediumThresholdPct,
+              loose_threshold_pct: layout.workspaceDefaults.aspectLineTierStyle.looseThresholdPct,
+              width_tight: layout.workspaceDefaults.aspectLineTierStyle.widthTight,
+              width_medium: layout.workspaceDefaults.aspectLineTierStyle.widthMedium,
+              width_loose: layout.workspaceDefaults.aspectLineTierStyle.widthLoose,
+              width_outer: layout.workspaceDefaults.aspectLineTierStyle.widthOuter
+            }
           },
         });
       } catch (err) {
         console.warn('Failed to persist workspace defaults', err);
       }
     }
+    if (options?.recomputeCharts) {
+      await recomputeAllCharts();
+    }
+  }
 
+  async function recomputeAllCharts() {
     for (const chart of layout.contexts) {
       const chartAtTime = {
         ...chart,
@@ -170,9 +253,74 @@
           houseCusps: result.house_cusps
         });
       } catch (err) {
-        console.warn(`Failed to refresh chart ${chart.id} after observable object change`, err);
+        console.warn(`Failed to refresh chart ${chart.id} after settings change`, err);
       }
     }
+  }
+
+  async function applyObservableObjects(nextBodies: string[]) {
+    selectedBodies = [...nextBodies];
+    settingsChanged = true;
+    await persistWorkspaceDefaultsPatch({ defaultBodies: nextBodies }, { recomputeCharts: true });
+  }
+
+  function buildAspectPatch(nextAspects: Record<string, { enabled: boolean; orb: number; color: string }>) {
+    return {
+      defaultAspects: ASPECT_ROWS.filter((aspect) => nextAspects[aspect.id]?.enabled).map((aspect) => aspect.id),
+      defaultAspectOrbs: Object.fromEntries(
+        ASPECT_ROWS.map((aspect) => [
+          aspect.id,
+          Number.isFinite(nextAspects[aspect.id]?.orb)
+            ? nextAspects[aspect.id]!.orb
+            : DEFAULT_ASPECT_ORBS[aspect.id]
+        ])
+      ),
+      defaultAspectColors: Object.fromEntries(
+        ASPECT_ROWS.map((aspect) => [
+          aspect.id,
+          nextAspects[aspect.id]?.color || DEFAULT_ASPECT_COLORS[aspect.id]
+        ])
+      )
+    };
+  }
+
+  async function persistAspectSettings(nextAspects: Record<string, { enabled: boolean; orb: number; color: string }>) {
+    await persistWorkspaceDefaultsPatch(buildAspectPatch(nextAspects), { recomputeCharts: true });
+  }
+
+  async function persistLocationSettings() {
+    const parsedLatitude = Number(latitude);
+    const parsedLongitude = Number(longitude);
+    await persistWorkspaceDefaultsPatch({
+      locationName: defaultLocation.trim() || layout.workspaceDefaults.locationName,
+      locationLatitude: Number.isFinite(parsedLatitude) ? parsedLatitude : layout.workspaceDefaults.locationLatitude,
+      locationLongitude: Number.isFinite(parsedLongitude) ? parsedLongitude : layout.workspaceDefaults.locationLongitude,
+      timezone: timezone.trim() || layout.workspaceDefaults.timezone
+    });
+  }
+
+  function resetDraftsFromWorkspace() {
+    settingsChanged = false;
+    defaultLocation = layout.workspaceDefaults.locationName;
+    latitude = String(layout.workspaceDefaults.locationLatitude);
+    longitude = String(layout.workspaceDefaults.locationLongitude);
+    timezone = layout.workspaceDefaults.timezone;
+    houseSystem = layout.workspaceDefaults.houseSystem;
+    selectedBodies = layout.workspaceDefaults.defaultBodies.length > 0
+      ? [...layout.workspaceDefaults.defaultBodies]
+      : [...DEFAULT_OBSERVABLE_OBJECT_IDS];
+    aspects = Object.fromEntries(
+      ASPECT_ROWS.map((aspect) => [
+        aspect.id,
+        {
+          enabled: layout.workspaceDefaults.defaultAspects.includes(aspect.id),
+          orb: layout.workspaceDefaults.defaultAspectOrbs[aspect.id] ?? aspect.defaultOrb,
+          color: layout.workspaceDefaults.defaultAspectColors[aspect.id] ?? DEFAULT_ASPECT_COLORS[aspect.id]
+        }
+      ])
+    );
+    aspectLineTiers = { ...layout.workspaceDefaults.aspectLineTierStyle };
+    elementColors = { ...getElementColors() };
   }
 </script>
 
@@ -184,7 +332,17 @@
         <div class="space-y-2">
           <label class="block text-sm font-medium opacity-90" for="settings-lang">{t('language', {}, 'Language')}</label>
           <div class="min-w-[220px]">
-            <Select.Root type="single" name="appLanguage" bind:value={langValue}>
+            <Select.Root
+              type="single"
+              name="appLanguage"
+              value={currentLangValue}
+              onValueChange={(value) => {
+                if (value !== i18n.lang) {
+                  setLang(value as any);
+                  settingsChanged = true;
+                }
+              }}
+            >
               <Select.Trigger class="w-[220px]" id="settings-lang">
                 {langTriggerContent}
               </Select.Trigger>
@@ -207,15 +365,49 @@
       <div class="space-y-4 max-w-md">
         <div class="space-y-2">
           <div class="block text-sm font-medium opacity-90">{t('default_location', {}, 'Default location')}</div>
-          <Input type="text" class="w-full h-9 px-3 rounded-md bg-background text-foreground border" placeholder={t('placeholder_default_location', {}, 'Enter default location...')} />
+          <Input
+            type="text"
+            class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
+            bind:value={defaultLocation}
+            onblur={() => void persistLocationSettings()}
+            oninput={() => (settingsChanged = true)}
+            placeholder={t('placeholder_default_location', {}, 'Enter default location...')}
+          />
+        </div>
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="space-y-2">
+            <div class="block text-sm font-medium opacity-90">{t('current_info_latitude', {}, 'Latitude')}</div>
+            <Input
+              type="text"
+              class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
+              bind:value={latitude}
+              onblur={() => void persistLocationSettings()}
+              oninput={() => (settingsChanged = true)}
+              placeholder={t('placeholder_latitude', {}, 'Latitude')}
+            />
+          </div>
+          <div class="space-y-2">
+            <div class="block text-sm font-medium opacity-90">{t('current_info_longitude', {}, 'Longitude')}</div>
+            <Input
+              type="text"
+              class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
+              bind:value={longitude}
+              onblur={() => void persistLocationSettings()}
+              oninput={() => (settingsChanged = true)}
+              placeholder={t('placeholder_longitude', {}, 'Longitude')}
+            />
+          </div>
         </div>
         <div class="space-y-2">
-          <div class="block text-sm font-medium opacity-90">{t('current_info_latitude', {}, 'Latitude')}</div>
-          <Input type="text" class="w-full h-9 px-3 rounded-md bg-background text-foreground border" placeholder={t('placeholder_latitude', {}, 'Latitude')} />
-        </div>
-        <div class="space-y-2">
-          <div class="block text-sm font-medium opacity-90">{t('current_info_longitude', {}, 'Longitude')}</div>
-          <Input type="text" class="w-full h-9 px-3 rounded-md bg-background text-foreground border" placeholder={t('placeholder_longitude', {}, 'Longitude')} />
+          <div class="block text-sm font-medium opacity-90">{t('current_info_timezone', {}, 'Timezone')}</div>
+          <Input
+            type="text"
+            class="w-full h-9 px-3 rounded-md bg-background text-foreground border"
+            bind:value={timezone}
+            onblur={() => void persistLocationSettings()}
+            oninput={() => (settingsChanged = true)}
+            placeholder={t('placeholder_utc_offset', {}, 'Timezone')}
+          />
         </div>
       </div>
     {:else if section === 'system_domu'}
@@ -223,19 +415,21 @@
       <div class="space-y-4 max-w-md">
         <div class="space-y-2">
           <div class="block text-sm font-medium opacity-90">{t('house_system', {}, 'House System')}</div>
-          <Select.Root type="single" value="Placidus">
-            <Select.Trigger class="w-full h-9 px-3">Placidus</Select.Trigger>
+          <Select.Root
+            type="single"
+            bind:value={houseSystem}
+            onValueChange={(value) => {
+              houseSystem = value;
+              settingsChanged = true;
+              void persistWorkspaceDefaultsPatch({ houseSystem: value });
+            }}
+          >
+            <Select.Trigger class="w-full h-9 px-3">{houseSystem}</Select.Trigger>
             <Select.Content>
               <Select.Group>
-                <Select.Item value="Placidus" label="Placidus">Placidus</Select.Item>
-                <Select.Item value="Whole Sign" label="Whole Sign">Whole Sign</Select.Item>
-                <Select.Item value="Campanus" label="Campanus">Campanus</Select.Item>
-                <Select.Item value="Koch" label="Koch">Koch</Select.Item>
-                <Select.Item value="Equal" label="Equal">Equal</Select.Item>
-                <Select.Item value="Regiomontanus" label="Regiomontanus">Regiomontanus</Select.Item>
-                <Select.Item value="Vehlow" label="Vehlow">Vehlow</Select.Item>
-                <Select.Item value="Porphyry" label="Porphyry">Porphyry</Select.Item>
-                <Select.Item value="Alcabitius" label="Alcabitius">Alcabitius</Select.Item>
+                {#each HOUSE_SYSTEMS as system}
+                  <Select.Item value={system} label={system}>{system}</Select.Item>
+                {/each}
               </Select.Group>
             </Select.Content>
           </Select.Root>
@@ -251,24 +445,100 @@
       </div>
     {:else if section === 'nastaveni_aspektu'}
       <h3 class="text-sm font-semibold mb-4">{t('section_nastaveni_aspektu', {}, 'Aspect settings')}</h3>
-      <div class="space-y-4 max-w-md">
+      <div class="space-y-4 max-w-3xl">
         <div class="space-y-2">
           <div class="block text-sm font-medium opacity-90">{t('default_aspects', {}, 'Default aspects')}</div>
           <div class="space-y-2">
-            {#each [
-              { id: 'conjunction', labelKey: 'aspect_conjunction', defaultOrb: 8 },
-              { id: 'sextile', labelKey: 'aspect_sextile', defaultOrb: 6 },
-              { id: 'square', labelKey: 'aspect_square', defaultOrb: 8 },
-              { id: 'trine', labelKey: 'aspect_trine', defaultOrb: 8 },
-              { id: 'quincunx', labelKey: 'aspect_quincunx', defaultOrb: 3 },
-              { id: 'opposition', labelKey: 'aspect_opposition', defaultOrb: 8 }
-            ] as aspect}
-              <div class="flex items-center justify-between">
+            {#each ASPECT_ROWS as aspect}
+              {@const row = aspects[aspect.id]}
+              <div class="grid items-center gap-3 rounded-xl border border-border/60 px-4 py-3 sm:grid-cols-[minmax(0,1fr)_170px]">
                 <label class="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer" checked={true} />
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 rounded border border-foreground/30 bg-background text-primary focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer"
+                    checked={row?.enabled}
+                    onchange={(e) => {
+                      const next = {
+                        ...aspects,
+                        [aspect.id]: {
+                          ...row,
+                          enabled: (e.currentTarget as HTMLInputElement).checked
+                        }
+                      };
+                      aspects = next;
+                      settingsChanged = true;
+                      void persistAspectSettings(next);
+                    }}
+                  />
                   <span class="text-sm">{t(aspect.labelKey, {}, aspect.labelKey)}</span>
                 </label>
-                <Input type="number" class="w-20 h-8 px-2 rounded-md bg-background text-foreground border text-xs" value={aspect.defaultOrb} min="0" max="30" step="0.5" />
+                <div class="flex items-center gap-2">
+                  <input
+                    type="color"
+                    class="h-9 w-10 shrink-0 cursor-pointer rounded-md border border-border/60 bg-background p-0"
+                    value={row?.color ?? DEFAULT_ASPECT_COLORS[aspect.id]}
+                    onchange={(e) => {
+                      const next = {
+                        ...aspects,
+                        [aspect.id]: {
+                          ...row,
+                          color: (e.currentTarget as HTMLInputElement).value
+                        }
+                      };
+                      aspects = next;
+                      settingsChanged = true;
+                      void persistAspectSettings(next);
+                    }}
+                  />
+                  <Input
+                    type="number"
+                    class="w-20 h-8 px-2 rounded-md bg-background text-foreground border text-xs"
+                    value={row?.orb ?? aspect.defaultOrb}
+                    min="0"
+                    max="30"
+                    step="0.5"
+                    oninput={(e) => {
+                      const next = {
+                        ...aspects,
+                        [aspect.id]: {
+                          ...row,
+                          orb: Number((e.currentTarget as HTMLInputElement).value) || 0
+                        }
+                      };
+                      aspects = next;
+                      settingsChanged = true;
+                    }}
+                    onblur={() => void persistAspectSettings(aspects)}
+                  />
+                </div>
+              </div>
+            {/each}
+          </div>
+        </div>
+        <div class="space-y-3 rounded-xl border border-border/60 px-4 py-4">
+          <div class="block text-sm font-medium opacity-90">
+            {t('settings_radix_aspect_lines_title', {}, 'Radix aspect line weights')}
+          </div>
+          <div class="grid gap-3 sm:grid-cols-2">
+            {#each aspectTierFields as field}
+              <div class="space-y-1">
+                <label class="text-xs" for={`aspect-tier-${field.key}`}>{t(field.labelKey, {}, field.labelKey)}</label>
+                <Input
+                  id={`aspect-tier-${field.key}`}
+                  type="number"
+                  class="h-9"
+                  min={field.min}
+                  step={field.step}
+                  value={aspectLineTiers[field.key]}
+                  oninput={(e) => {
+                    aspectLineTiers = {
+                      ...aspectLineTiers,
+                      [field.key]: Number((e.currentTarget as HTMLInputElement).value) || aspectLineTiers[field.key]
+                    };
+                    settingsChanged = true;
+                  }}
+                  onblur={() => void persistWorkspaceDefaultsPatch({ aspectLineTierStyle: aspectLineTiers }, { recomputeCharts: true })}
+                />
               </div>
             {/each}
           </div>
@@ -402,17 +672,17 @@
     <Button
       variant="outline"
       class="flex-1"
-      onclick={() => {
-        settingsChanged = false;
-      }}
+      onclick={resetDraftsFromWorkspace}
     >
       {t('cancel', {}, 'Cancel')}
     </Button>
     <Button
       class="flex-1"
-      onclick={() => {
+      onclick={async () => {
+        await persistLocationSettings();
         settingsChanged = false;
       }}
+      disabled={!settingsChanged}
     >
       {t('confirm', {}, 'Confirm')}
     </Button>

@@ -142,14 +142,6 @@ export async function queryPositions(
         const startDt = (startDatetime && startDatetime.trim() !== '') ? startDatetime : null;
         const endDt = (endDatetime && endDatetime.trim() !== '') ? endDatetime : null;
         
-        console.log('Calling query_positions with:', {
-            workspacePath: workspacePath,
-            chartId: chartId,
-            startDatetime: startDt,
-            endDatetime: endDt,
-            useParquet: useParquet,
-        });
-        
         const positions = await invoke<Array<{
             datetime: string;
             object_id: string;
@@ -397,7 +389,6 @@ export async function getCurrentPositions(chartId: string): Promise<Position[]> 
         const { effectiveTime } = await import('$lib/stores/timeNavigation.svelte');
         const time = effectiveTime();
         const timeStr = time.toISOString();
-        console.log('Querying positions for chart:', chartId, 'at time:', timeStr);
         return await queryPositionsCached(chartId, timeStr);
     } catch (error) {
         console.error('getCurrentPositions error:', error);

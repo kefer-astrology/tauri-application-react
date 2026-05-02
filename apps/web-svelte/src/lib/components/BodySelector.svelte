@@ -143,7 +143,7 @@
                 {:else}
                   <img
                     src={glyph.content}
-                    alt={body.name}
+                    alt={body.label}
                     style={`width:${glyph.size}px;height:${glyph.size}px;vertical-align:middle;`}
                     onerror={() => {
                       failedGlyphFiles[`${body.id}:${glyph.content}`] = true;
@@ -156,7 +156,7 @@
                   {glyph.content || body.id.charAt(0).toUpperCase()}
                 </span>
               {/if}
-              <span class="text-sm">{body.name}</span>
+              <span class="text-sm">{body.label}</span>
             </label>
           {/each}
         </div>

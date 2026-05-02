@@ -44,6 +44,9 @@ export const OBSERVABLE_OBJECTS: ObservableObjectDefinition[] = [
 ];
 
 export const DEFAULT_OBSERVABLE_OBJECT_IDS = OBSERVABLE_OBJECTS.map((item) => item.id);
+export const DEFAULT_ENABLED_OBSERVABLE_OBJECT_IDS = OBSERVABLE_OBJECTS.filter(
+  (item) => item.category !== 'asteroids'
+).map((item) => item.id);
 
 export const OBSERVABLE_OBJECT_CATEGORY_LABELS: Record<ObservableObjectCategory, string> = {
   luminaries: 'Luminaries',

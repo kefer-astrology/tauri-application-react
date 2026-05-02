@@ -29,6 +29,7 @@ export const glyphSetOptions: GlyphSetOption[] = [
 const GLYPH_SET_STORAGE_KEY = 'glyph_set';
 const CUSTOM_GLYPHS_STORAGE_KEY = 'custom_glyphs';
 const ASSET_BASE_URL = import.meta.env.BASE_URL;
+const SVELTE_GLYPH_SCALE = 0.9;
 
 const glyphCatalog: Record<
   string,
@@ -230,11 +231,16 @@ export function getGlyphContent(
   const glyph = glyphs[normalizedId];
   if (!glyph) {
     const fallback = normalizedId.slice(0, 2).toUpperCase() || '??';
-    return { type: 'unicode', content: fallback, size: 20, fallback };
+    return {
+      type: 'unicode',
+      content: fallback,
+      size: Math.round(20 * SVELTE_GLYPH_SCALE),
+      fallback
+    };
   }
 
   const svg = glyph.svg;
-  const size = glyph.size ?? 20;
+  const size = Math.round((glyph.size ?? 20) * SVELTE_GLYPH_SCALE);
   const fallback = glyph.fallback ?? glyph.name.charAt(0).toUpperCase();
   if (isSvgMarkup(svg)) return { type: 'svg', content: svg, size, fallback };
   if (isSvgPath(svg)) return { type: 'file', content: svg, size, fallback };
