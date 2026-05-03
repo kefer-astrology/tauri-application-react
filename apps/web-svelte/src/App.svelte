@@ -138,6 +138,7 @@
   // Dynamic / Revolution mode state (left menu selection)
   let selectedDynamicSection = $state<string | undefined>(undefined);
   let selectedRevolutionSection = $state<string | undefined>(undefined);
+  let timeNavigationSeededChartId = $state<string | null>(null);
   
   $effect(() => {
     if (!transitSourceChartId && layout.contexts.length > 0) {
@@ -523,27 +524,40 @@
   // Initialize time navigation when chart is selected
   $effect(() => {
     const chart = selectedChart;
-    if (chart && chart.dateTime) {
+    if (!chart?.id || !chart.dateTime) {
+      timeNavigationSeededChartId = null;
+      return;
+    }
+
+    const hasComputedPositions = Boolean(
+      chart.computed?.positions && Object.keys(chart.computed.positions).length > 0
+    );
+    const shouldSeedNavigation =
+      timeNavigationSeededChartId !== chart.id || !hasComputedPositions;
+
+    if (shouldSeedNavigation) {
       try {
         // Accept the same canonical chart timestamp contract as React/Rust.
         const chartDate = parseChartDateTimeValue(chart.dateTime);
         if (chartDate && !isNaN(chartDate.getTime())) {
           const chartTimeMs = chartDate.getTime();
           const currentTimeMs = timeNavigation.currentTime?.getTime?.() ?? NaN;
-          // Set the current time to the chart's event time
-          if (currentTimeMs !== chartTimeMs) {
+          // When Astrolabe shift is active, the shifted chart time is a preview target.
+          // Feeding that time back into currentTime would reapply the shift repeatedly.
+          if (!timeNavigation.shiftActive && currentTimeMs !== chartTimeMs) {
             timeNavigation.currentTime = chartDate;
           }
           // Set time range around the chart time (default: 1 day before/after)
           const oneDay = 24 * 60 * 60 * 1000;
           const nextStart = chartTimeMs - oneDay;
           const nextEnd = chartTimeMs + oneDay;
-          if ((timeNavigation.startTime?.getTime?.() ?? NaN) !== nextStart) {
+          if (!timeNavigation.shiftActive && (timeNavigation.startTime?.getTime?.() ?? NaN) !== nextStart) {
             timeNavigation.startTime = new Date(nextStart);
           }
-          if ((timeNavigation.endTime?.getTime?.() ?? NaN) !== nextEnd) {
+          if (!timeNavigation.shiftActive && (timeNavigation.endTime?.getTime?.() ?? NaN) !== nextEnd) {
             timeNavigation.endTime = new Date(nextEnd);
           }
+          timeNavigationSeededChartId = chart.id;
         }
       } catch (err) {
         console.error('Failed to parse chart date:', err);
