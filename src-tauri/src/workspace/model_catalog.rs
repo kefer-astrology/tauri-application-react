@@ -241,6 +241,19 @@ fn builtin_body_definitions() -> Vec<BodyDefinition> {
             false,
             EngineSupport::SwissOnly,
         ),
+        // Osculating/"true" Black Moon Lilith (lunar apogee), computed via the
+        // eccentricity vector of the Moon's instantaneous orbit — see
+        // `domain::houses::true_apogee_tropical_deg`. Swiss Ephemeris support
+        // (`SE_OSCU_APOG`) is not yet wired up in this backend's swisseph adapter.
+        body_definition(
+            "true_lilith",
+            "True Lilith",
+            "⚸",
+            ObjectType::CalculatedPoint,
+            false,
+            false,
+            EngineSupport::JplOnly,
+        ),
         body_definition(
             "chiron",
             "Chiron",

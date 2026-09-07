@@ -7,7 +7,10 @@
 ///   - Ecliptic longitude: ICRF → ecliptic via obliquity rotation in houses.rs
 ///   - Lunar nodes: computed analytically in houses.rs
 ///   - House cusps: computed in houses.rs
-///   - Chiron: not in any standard DE file; planned via JPL Horizons API
+///   - Chiron: not in any standard DE file; the Python sidecar already computes it
+///     from vendored MPCORB osculating elements (`function-wrapper/module/services.py`),
+///     using the same two-body Kepler propagation `anise::Orbit` already exposes
+///     (`try_keplerian_mean_anomaly` + `at_epoch`) — not yet wired up in Rust
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock, RwLock};
@@ -23,7 +26,7 @@ use hifitime::Epoch;
 use crate::domain::houses::{
     campanus_cusps, compute_axes, general_precession_deg, icrf_to_ecliptic, julian_day_from_unix,
     mean_node_lon, mean_node_motion, mean_obliquity_deg, normalize_deg, placidus_cusps,
-    true_node_tropical_deg, whole_sign_cusps,
+    true_apogee_tropical_deg, true_node_tropical_deg, whole_sign_cusps,
 };
 use crate::infrastructure::astronomy::{
     AstronomyAxes, AstronomyBackend, AstronomyChartData, AstronomyMotion,
@@ -193,6 +196,36 @@ fn true_node_motion(almanac: &Almanac, unix_secs: f64) -> Result<AstronomyMotion
     const SAMPLE_STEP_SECONDS: f64 = 3600.0;
     let before = true_node_tropical_at_unix(almanac, unix_secs - SAMPLE_STEP_SECONDS)?;
     let after = true_node_tropical_at_unix(almanac, unix_secs + SAMPLE_STEP_SECONDS)?;
+    let delta = angular_delta_deg(before, after);
+    let speed = delta / ((SAMPLE_STEP_SECONDS * 2.0) / 86_400.0);
+    Ok(AstronomyMotion {
+        speed,
+        retrograde: speed < 0.0,
+    })
+}
+
+fn true_apogee_tropical_at_unix(almanac: &Almanac, unix_secs: f64) -> Result<f64, String> {
+    let jd_ut = julian_day_from_unix(unix_secs);
+    let epoch = Epoch::from_unix_seconds(unix_secs);
+    let state = almanac
+        .translate(MOON_J2000, EARTH_J2000, epoch, None)
+        .map_err(|e| e.to_string())?;
+    true_apogee_tropical_deg(
+        state.radius_km.x,
+        state.radius_km.y,
+        state.radius_km.z,
+        state.velocity_km_s.x,
+        state.velocity_km_s.y,
+        state.velocity_km_s.z,
+        jd_ut,
+    )
+    .ok_or_else(|| "true_lilith_unavailable: degenerate Moon state".to_string())
+}
+
+fn true_apogee_motion(almanac: &Almanac, unix_secs: f64) -> Result<AstronomyMotion, String> {
+    const SAMPLE_STEP_SECONDS: f64 = 3600.0;
+    let before = true_apogee_tropical_at_unix(almanac, unix_secs - SAMPLE_STEP_SECONDS)?;
+    let after = true_apogee_tropical_at_unix(almanac, unix_secs + SAMPLE_STEP_SECONDS)?;
     let delta = angular_delta_deg(before, after);
     let speed = delta / ((SAMPLE_STEP_SECONDS * 2.0) / 86_400.0);
     Ok(AstronomyMotion {
@@ -388,10 +421,25 @@ impl AstronomyBackend for JplAstronomyBackend {
             }
         }
 
-        // Chiron is not in any standard DE planetary ephemeris
+        if wanted("true_lilith") {
+            match true_apogee_tropical_at_unix(&almanac, unix_secs) {
+                Ok(true_apogee) => {
+                    positions.insert("true_lilith".to_string(), true_apogee);
+                    if let Ok(apogee_motion) = true_apogee_motion(&almanac, unix_secs) {
+                        motion.insert("true_lilith".to_string(), apogee_motion);
+                    }
+                }
+                Err(e) => {
+                    warnings.push(e);
+                }
+            }
+        }
+
+        // Chiron is not in any standard DE planetary ephemeris; the vendored-MPCORB
+        // Kepler-propagation path the Python sidecar uses is not yet ported to Rust.
         if wanted("chiron") {
             warnings.push(
-                "chiron_not_available: not in standard DE files; JPL Horizons API planned"
+                "chiron_not_available: not in standard DE files; MPCORB orbital-elements path not yet implemented in Rust"
                     .to_string(),
             );
         }
@@ -473,6 +521,31 @@ mod tests {
     fn no_bsp_returns_error() {
         let backend = JplAstronomyBackend::new(vec![PathBuf::from("nonexistent.bsp")]);
         assert!(backend.build_almanac().is_err());
+    }
+
+    /// Cross-checks `true_apogee_tropical_at_unix` against JPL Horizons' own osculating
+    /// elements for the Moon (body 301, geocentric, ecliptic-of-J2000) at exactly
+    /// J2000.0, where this backend's tropical/J2000 frames coincide (zero precession
+    /// offset). Horizons gives EC=0.0631472..., OM=123.9580554°, W=308.9226727° at
+    /// 2000-Jan-01 12:00:00 TDB; apogee longitude = OM + W + 180 (mod 360) = 252.8807°.
+    #[test]
+    fn true_lilith_matches_horizons_osculating_elements_at_j2000() {
+        let bsp = dev_bsp_path("de440s.bsp").expect("no BSP found");
+        let almanac = load_almanac_from_paths(&[bsp]).expect("almanac should load");
+
+        // J2000.0 = 2000-01-01 12:00:00 UTC (TDB-UTC is ~64s in 2000, negligible here).
+        let epoch = Epoch::from_gregorian_utc(2000, 1, 1, 12, 0, 0, 0);
+        let unix_secs = epoch.to_unix_seconds();
+
+        let apogee = true_apogee_tropical_at_unix(&almanac, unix_secs)
+            .expect("Moon state should be available in de440s.bsp at J2000.0");
+
+        let expected = 252.880_728_1;
+        let delta = angular_delta_deg(expected, apogee).abs();
+        assert!(
+            delta < 0.5,
+            "true_lilith at J2000.0: got {apogee:.4}°, expected ~{expected:.4}° (Horizons), delta {delta:.4}°"
+        );
     }
 
     /// Confirms the minor planets added to the body catalog alongside `codes_300ast`

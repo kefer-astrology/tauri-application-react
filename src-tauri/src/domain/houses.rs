@@ -426,6 +426,60 @@ pub fn true_node_tropical_deg(
     Some(tropical)
 }
 
+/// Combined Earth+Moon gravitational parameter (GM), km³/s², for the *reduced*
+/// two-body relative-motion problem the Moon's geocentric state vector represents
+/// (Kepler's third law for relative orbits uses G(M₁+M₂), not G·M_Earth alone).
+/// GM_Earth (398_600.435_507, DE440 header) + GM_Moon (4_902.800_118, DE440 header).
+/// Matches the Python sidecar's `_MU_EARTH_MOON_KM3_S2`.
+const MU_EARTH_MOON_KM3_S2: f64 = 403_503.235;
+
+/// True (osculating) lunar apogee, **tropical** longitude (degrees) — the "True Lilith"
+/// point used in some astrological traditions, distinct from the smoothed "Mean Lilith"
+/// (Swiss Ephemeris `SE_MEAN_APOG`, not computed by this backend). Matches the Python
+/// sidecar's `_true_lilith_tropical_deg` (same eccentricity-vector method and `μ`).
+///
+/// Derived from the two-body eccentricity (Laplace–Runge–Lenz) vector of the Moon's
+/// instantaneous orbit around Earth, `e = [(v² − μ/r)·r − (r·v)·v] / μ`, which points
+/// toward perigee; apogee is the opposite direction. Same inertial frame, obliquity,
+/// and precession convention as `true_node_tropical_deg`. Returns `None` for a
+/// near-circular or rectilinear osculating orbit — never reached for the real Moon
+/// (eccentricity ≈ 0.055), only for degenerate synthetic inputs.
+pub fn true_apogee_tropical_deg(
+    rx: f64,
+    ry: f64,
+    rz: f64,
+    vx: f64,
+    vy: f64,
+    vz: f64,
+    jd_ut: f64,
+) -> Option<f64> {
+    let r_sq = rx * rx + ry * ry + rz * rz;
+    let r = r_sq.sqrt();
+    if !r.is_finite() || r < 1e-6 {
+        return None;
+    }
+    let v_sq = vx * vx + vy * vy + vz * vz;
+    let r_dot_v = rx * vx + ry * vy + rz * vz;
+    let mu = MU_EARTH_MOON_KM3_S2;
+
+    let ex = ((v_sq - mu / r) * rx - r_dot_v * vx) / mu;
+    let ey = ((v_sq - mu / r) * ry - r_dot_v * vy) / mu;
+    let ez = ((v_sq - mu / r) * rz - r_dot_v * vz) / mu;
+    let e_sq = ex * ex + ey * ey + ez * ez;
+    if !e_sq.is_finite() || e_sq < 1e-12 {
+        return None;
+    }
+    let e_mag = e_sq.sqrt();
+
+    // Eccentricity vector points toward perigee; apogee is the opposite direction.
+    let eps_deg = mean_obliquity_deg(jd_ut);
+    let lambda_mean_ecliptic =
+        ecliptic_longitude_deg_from_icrf_xyz(-ex / e_mag, -ey / e_mag, -ez / e_mag, eps_deg);
+    Some(normalize_deg(
+        lambda_mean_ecliptic + general_precession_deg(jd_ut),
+    ))
+}
+
 // ─── ecliptic transform ───────────────────────────────────────────────────────
 
 /// Convert an ICRF/J2000 position vector (km) to ecliptic longitude and latitude (degrees).
@@ -473,6 +527,31 @@ mod tests {
         let omega = mean_node_lon(jd);
         // USNO gives ~125.04° at J2000.0
         assert!((omega - 125.04).abs() < 0.1, "mean node at J2000: {omega}");
+    }
+
+    #[test]
+    fn true_apogee_matches_synthetic_perigee_direction() {
+        // A synthetic eccentric orbit with perigee exactly on the ICRF/ecliptic X axis
+        // (velocity purely tangential) keeps the eccentricity vector on that same axis
+        // regardless of obliquity, so at J2000.0 (zero precession offset) the computed
+        // apogee should land exactly opposite it, at 180°.
+        let a = 384_400.0; // km, Moon-like semi-major axis
+        let e = 0.5; // exaggerated eccentricity, chosen only for a clean synthetic check
+        let r_p = a * (1.0 - e);
+        let v_p = (MU_EARTH_MOON_KM3_S2 * (1.0 + e) / r_p).sqrt();
+
+        let jd = 2451545.0; // J2000.0: general_precession_deg == 0
+        let apogee = true_apogee_tropical_deg(r_p, 0.0, 0.0, 0.0, v_p, 0.0, jd)
+            .expect("eccentric orbit should have a well-defined apogee");
+        assert!((apogee - 180.0).abs() < 1e-6, "apogee: {apogee}");
+    }
+
+    #[test]
+    fn true_apogee_is_none_for_circular_orbit() {
+        // A circular orbit (v^2 = mu/r) has zero eccentricity - apogee is undefined.
+        let r = 384_400.0;
+        let v = (MU_EARTH_MOON_KM3_S2 / r).sqrt();
+        assert!(true_apogee_tropical_deg(r, 0.0, 0.0, 0.0, v, 0.0, 2451545.0).is_none());
     }
 
     #[test]
