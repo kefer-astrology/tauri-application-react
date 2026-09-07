@@ -1,0 +1,35 @@
+src-tauri/src/infrastructure/astronomy/jpl_backend.rs
+  s_5241e6c69a41a3::t_ecb6bfb1fb1386 207-236
+  s_5241e6c69a41a3::t_18e106002ad830 10-13
+  s_5241e6c69a41a3::t_7df8199eb5608d 424-437
+  s_5241e6c69a41a3::t_4aeadb1dd905f6 438-439,442
+  s_5241e6c69a41a3::t_360d91c9b34d09 29
+  s_5241e6c69a41a3::t_01112570230b64 526-550
+src-tauri/src/workspace/model_catalog.rs
+  s_5241e6c69a41a3::t_67221851a5ecfa 244-256
+src-tauri/src/domain/houses.rs
+  s_5241e6c69a41a3::t_602aff8b738520 478-480
+  s_5241e6c69a41a3::t_5be6fc716d3f75 532-556
+  s_5241e6c69a41a3::t_aea13f7397d2a2 429-477,481-482
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "24de16a6bf54b3c1282b187095b0e0aca7169905",
+  "prompts": {},
+  "humans": {
+    "h_0907ec034f4a17": {
+      "author": "kubow <kube.kubow@gmail.com>"
+    }
+  },
+  "sessions": {
+    "s_5241e6c69a41a3": {
+      "agent_id": {
+        "tool": "claude",
+        "id": "147e2ecd-6b4f-489d-ac4f-f3d2633178c5",
+        "model": "claude-sonnet-5"
+      },
+      "human_author": "kubow <kube.kubow@gmail.com>"
+    }
+  }
+}
